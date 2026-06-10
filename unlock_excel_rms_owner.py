@@ -18,7 +18,6 @@ Examples:
   python unlock_excel_rms_owner.py report.xlsx --output report-unprotected.xlsx
   python unlock_excel_rms_owner.py C:\\docs --output C:\\exported
   python unlock_excel_rms_owner.py C:\\docs --dry-run
-  python unlock_excel_rms_owner.py C:\\docs --output C:\\exported --report C:\\exported\\report.json
 """
 
 from __future__ import annotations
@@ -29,7 +28,6 @@ import os
 import subprocess
 import sys
 from dataclasses import dataclass
-from datetime import datetime
 from pathlib import Path
 from typing import Iterable
 
@@ -42,14 +40,6 @@ class ExportResult:
     target: Path
     ok: bool
     message: str
-
-
-@dataclass(frozen=True)
-class ReportEntry:
-    source: Path
-    target: Path
-    status: str
-    reason: str
 
 
 def is_windows() -> bool:
@@ -158,16 +148,13 @@ try {{
 def export_with_excel(input_file: Path, output_file: Path, timeout: int) -> ExportResult:
     output_file.parent.mkdir(parents=True, exist_ok=True)
     script = build_powershell_script(input_file.resolve(), output_file.resolve())
-    try:
-        completed = subprocess.run(
-            ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-            check=False,
-        )
-    except subprocess.TimeoutExpired:
-        return ExportResult(input_file, output_file, False, f"Timed out after {timeout} seconds")
+    completed = subprocess.run(
+        ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        check=False,
+    )
 
     stdout = completed.stdout.strip()
     message = completed.stderr.strip() or stdout or f"PowerShell exited with {completed.returncode}"
@@ -183,70 +170,6 @@ def export_with_excel(input_file: Path, output_file: Path, timeout: int) -> Expo
             pass
 
     return ExportResult(input_file, output_file, ok, message)
-
-
-def report_entry_to_dict(entry: ReportEntry) -> dict[str, str]:
-    return {
-        "source": str(entry.source),
-        "target": str(entry.target),
-        "status": entry.status,
-        "reason": entry.reason,
-    }
-
-
-def print_report(entries: list[ReportEntry]) -> None:
-    counts = {"success": 0, "failed": 0, "skipped": 0, "planned": 0}
-    for entry in entries:
-        if entry.status in counts:
-            counts[entry.status] += 1
-
-    print("\n=== Result Report ===")
-    print(f"Total: {len(entries)}")
-    print(f"Success: {counts['success']}")
-    print(f"Failed: {counts['failed']}")
-    print(f"Skipped: {counts['skipped']}")
-    print(f"Planned: {counts['planned']}")
-
-    if counts["success"]:
-        print("\nSuccessful files:")
-        for entry in entries:
-            if entry.status == "success":
-                print(f"  OK    {entry.source} -> {entry.target}")
-
-    if counts["failed"]:
-        print("\nFailed files:")
-        for entry in entries:
-            if entry.status == "failed":
-                print(f"  FAIL  {entry.source} -> {entry.target}: {entry.reason}")
-
-    if counts["skipped"]:
-        print("\nSkipped files:")
-        for entry in entries:
-            if entry.status == "skipped":
-                print(f"  SKIP  {entry.source} -> {entry.target}: {entry.reason}")
-
-    if counts["planned"]:
-        print("\nPlanned files:")
-        for entry in entries:
-            if entry.status == "planned":
-                print(f"  PLAN  {entry.source} -> {entry.target}")
-
-
-def write_report(report_path: Path, entries: list[ReportEntry]) -> None:
-    report_path.parent.mkdir(parents=True, exist_ok=True)
-    payload = {
-        "generatedAt": datetime.now().isoformat(timespec="seconds"),
-        "summary": {
-            "total": len(entries),
-            "success": sum(1 for entry in entries if entry.status == "success"),
-            "failed": sum(1 for entry in entries if entry.status == "failed"),
-            "skipped": sum(1 for entry in entries if entry.status == "skipped"),
-            "planned": sum(1 for entry in entries if entry.status == "planned"),
-        },
-        "files": [report_entry_to_dict(entry) for entry in entries],
-    }
-    report_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
-    print(f"\nReport written to: {report_path}")
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -267,7 +190,6 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--overwrite", action="store_true", help="Overwrite existing output files")
     parser.add_argument("--timeout", type=int, default=120, help="Timeout per file in seconds")
     parser.add_argument("--dry-run", action="store_true", help="Show planned work without opening Excel")
-    parser.add_argument("--report", type=Path, help="Optional JSON report path for per-file results")
     return parser.parse_args(argv)
 
 
@@ -298,40 +220,28 @@ def main(argv: list[str]) -> int:
         print("This script must run on Windows because it requires Excel COM automation.", file=sys.stderr)
         return 2
 
-    entries: list[ReportEntry] = []
     failures = 0
     for source in files:
         target = target_for_file(source, source_root, output, directory_mode)
         if source.resolve() == target.resolve():
             failures += 1
-            reason = "refusing to overwrite source file; choose a different --output"
-            entries.append(ReportEntry(source, target, "skipped", reason))
-            print(f"SKIP  {source} -> {target} ({reason})")
+            print(f"SKIP  {source} -> {target} (refusing to overwrite source file; choose a different --output)")
             continue
 
         if target.exists() and not args.overwrite:
             failures += 1
-            reason = "target exists; use --overwrite"
-            entries.append(ReportEntry(source, target, "skipped", reason))
-            print(f"SKIP  {source} -> {target} ({reason})")
+            print(f"SKIP  {source} -> {target} (target exists; use --overwrite)")
             continue
 
         if args.dry_run:
-            entries.append(ReportEntry(source, target, "planned", "dry run; not processed"))
             print(f"PLAN  {source} -> {target}")
             continue
 
         result = export_with_excel(source, target, args.timeout)
         status = "OK" if result.ok else "FAIL"
-        entry_status = "success" if result.ok else "failed"
-        entries.append(ReportEntry(result.source, result.target, entry_status, result.message))
         print(f"{status}  {result.source} -> {result.target}: {result.message}")
         if not result.ok:
             failures += 1
-
-    print_report(entries)
-    if args.report is not None:
-        write_report(args.report.expanduser(), entries)
 
     return 1 if failures else 0
 

@@ -1,0 +1,22 @@
+{
+  "users": {
+    ".read": "doc.openid == auth.openid",
+    ".write": "doc.openid == auth.openid"
+  },
+  "builtin_courses": {
+    ".read": true,
+    ".write": false
+  },
+  "user_courses": {
+    ".read": "doc._openid == auth.openid",
+    ".write": "doc._openid == auth.openid"
+  },
+  "user_practice_records": {
+    ".read": "doc._openid == auth.openid",
+    ".write": "doc._openid == auth.openid"
+  },
+  "user_stats": {
+    ".read": "doc._openid == auth.openid",
+    ".write": "doc._openid == auth.openid"
+  }
+}

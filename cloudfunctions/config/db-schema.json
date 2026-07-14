@@ -1,0 +1,111 @@
+{
+  "collections": {
+    "users": {
+      "description": "用户表",
+      "permission_rule": {
+        "read": "doc.openid == auth.openid",
+        "write": "doc.openid == auth.openid"
+      },
+      "indexes": [
+        { keys": { "openid": 1 }, unique: true, name": "idx_openid" }
+      ],
+      "fields": {
+        "openid": { "type": "string", "required": true, "description": "微信openid" },
+        "nickname": { "type": "string", "required": false, "default": "", "description": "用户昵称" },
+        "avatar": { "type": "string", "required": false, "default": "", "description": "用户头像URL" },
+        "created_at": { "type": "date", "required": true },
+        "updated_at": { "type": "date", "required": true }
+      }
+    },
+    "builtin_courses": {
+      "description": "内置课程表（预置课程，只读）",
+      "permission_rule": {
+        "read": true,
+        "write": false
+      },
+      "indexes": [
+        { keys: { "category": 1 }, unique: false, name": "idx_category" },
+        { keys: { "is_published": 1 }, unique: false, name": "idx_published" },
+        { keys: { "difficulty": 1, "category": 1 }, unique: false, name": "idx_diff_cat" }
+      ],
+      "fields": {
+        "course_name": { "type": "string", "required": true },
+        "description": { "type": "string", "required": true },
+        "difficulty": { "type": "string", "required": true, "enum": ["easy", "medium", "hard"] },
+        "category": { "type": "string", "required": true },
+        "sentence_count": { "type": "number", "required": true },
+        "sentences": { "type": "array", "required": true, "description": "句子列表: [{english, chinese, phonetic}]" },
+        "is_published": { "type": "boolean", "required": true, "default": true },
+        "created_at": { "type": "date", "required": true },
+        "updated_at": { "type": "date", "required": true }
+      }
+    },
+    "user_courses": {
+      "description": "用户自定义课程表（AI生成/导入）",
+      "permission_rule": {
+        "read": "doc._openid == auth.openid",
+        "write": "doc._openid == auth.openid"
+      },
+      "indexes": [
+        { keys": { "_openid": 1 }, unique: false, name": "idx_openid" },
+        { keys: { "_openid": 1, "created_at": -1 }, unique: false, name": "idx_openid_time" }
+      ],
+      "fields": {
+        "_openid": { "type": "string", "required": true, "description": "创建者openid，由云数据库自动写入" },
+        "course_id": { "type": "string", "required": true, "description": "客户端生成的课程ID" },
+        "course_name": { "type": "string", "required": true },
+        "description": { "type": "string", "required": false, "default": "" },
+        "difficulty": { "type": "string", "required": true, "enum": ["easy", "medium", "hard"] },
+        "sentence_count": { "type": "number", "required": true },
+        "sentences": { "type": "array", "required": true },
+        "source": { "type": "string", "required": true, "enum": ["ai", "import"] },
+        "created_at": { "type": "date", "required": true },
+        "updated_at": { "type": "date", "required": true }
+      }
+    },
+    "user_practice_records": {
+      "description": "用户练习记录表",
+      "permission_rule": {
+        "read": "doc._openid == auth.openid",
+        "write": "doc._openid == auth.openid"
+      },
+      "indexes": [
+        { keys: { "_openid": 1 }, unique: false, name: "idx_openid" },
+        { keys: { "_openid": 1, "practice_time": -1 }, unique: false, name: "idx_openid_practice_time" }
+      ],
+      "fields": {
+        "_openid": { "type": "string", "required": true },
+        "record_id": { "type": "string", "required": true, "description": "客户端记录ID" },
+        "course_id": { "type": "string", "required": true },
+        "course_name": { "type": "string", "required": true },
+        "total_sentences": { "type": "number", "required": true },
+        "correct_count": { "type": "number", "required": true },
+        "accuracy": { "type": "number", "required": true, "description": "0-100" },
+        "max_combo": { "type": "number", "required": true },
+        "duration": { "type": "number", "required": true, "description": "秒" },
+        "practice_time": { "type": "date", "required": true },
+        "created_at": { "type": "date", "required": true }
+      }
+    },
+    "user_stats": {
+      "description": "用户统计表（每个用户一条）",
+      "permission_rule": {
+        "read": "doc._openid == auth.openid",
+        "write": "doc._openid == auth.openid"
+      },
+      "indexes": [
+        { keys: { "_openid": 1 }, unique: true, name": "idx_openid" }
+      ],
+      "fields": {
+        "_openid": { "type": "string", "required": true, "unique": true },
+        "total_practice_time": { "type": "number", "required": true, "default": 0, "description": "累计练习时长（秒）" },
+        "total_correct": { "type": "number", "required": true, "default": 0, "description": "累计正确句子数，用于计算总正确率" },
+        "total_sentences": { "type": "number", "required": true, "default": 0, "description": "累计练习句子总数" },
+        "max_combo": { "type": "number", "required": true, "default": 0, "description": "历史最高连击" },
+        "continuous_days": { "type": "number", "required": true, "default": 0 },
+        "last_practice_date": { "type": "string", "required": false, "description": "YYYY-MM-DD" },
+        "updated_at": { "type": "date", "required": true }
+      }
+    }
+  }
+}

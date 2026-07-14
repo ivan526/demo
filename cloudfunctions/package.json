@@ -1,0 +1,7 @@
+{
+  "name": "english-typing-cloudfunctions",
+  "version": "1.0.0",
+  "description": "Cloud functions for English typing practice mini-program (BE-001)",
+  "private": true,
+  "dependencies": {}
+}

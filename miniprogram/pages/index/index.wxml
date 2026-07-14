@@ -1,0 +1,28 @@
+<view class="page">
+  <view class="hero section">
+    <view class="hero-title">英语敲敲练</view>
+    <view class="hero-subtitle">看中文释义和音标，输入完整英文句子。</view>
+    <button class="primary-button" bindtap="goCourse">开始练习</button>
+  </view>
+
+  <view class="section">
+    <view class="section-title">今日概览</view>
+    <view class="stats-grid">
+      <stat-card label="累计时长" value="{{stats.totalDuration}}" />
+      <stat-card label="练习次数" value="{{stats.practiceCount}}" />
+      <stat-card label="最高连击" value="{{stats.bestCombo}}" />
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-title">推荐课程</view>
+    <view class="course-list">
+      <course-card
+        wx:for="{{recommendedCourses}}"
+        wx:key="course_id"
+        course="{{item}}"
+        bind:select="onCourseSelect"
+      />
+    </view>
+  </view>
+</view>

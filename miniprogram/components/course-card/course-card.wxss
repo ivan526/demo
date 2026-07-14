@@ -1,0 +1,41 @@
+.course-card {
+  padding: 24rpx;
+  border: 2rpx solid #e2e8f0;
+  border-radius: 8rpx;
+  background: #ffffff;
+}
+
+.title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.title {
+  flex: 1;
+  font-size: 30rpx;
+  font-weight: 700;
+}
+
+.badge {
+  padding: 6rpx 12rpx;
+  border-radius: 8rpx;
+  background: #e0f2fe;
+  color: #0369a1;
+  font-size: 22rpx;
+}
+
+.description {
+  margin-top: 12rpx;
+  color: #475569;
+  line-height: 40rpx;
+}
+
+.meta {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 18rpx;
+  color: #64748b;
+  font-size: 24rpx;
+}

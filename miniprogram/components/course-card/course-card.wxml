@@ -1,0 +1,11 @@
+<view class="course-card" bindtap="onTap">
+  <view class="title-row">
+    <text class="title">{{course.course_name}}</text>
+    <text class="badge">{{course.difficulty}}</text>
+  </view>
+  <view class="description">{{course.description}}</view>
+  <view class="meta">
+    <text>{{course.category || course.source || '自定义'}}</text>
+    <text>{{course.sentence_count || 0}} 句</text>
+  </view>
+</view>

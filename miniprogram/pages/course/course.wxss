@@ -1,0 +1,26 @@
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  padding: 6rpx;
+  border-radius: 8rpx;
+  background: #e2e8f0;
+}
+
+.tab {
+  height: 72rpx;
+  border-radius: 8rpx;
+  color: #475569;
+  line-height: 72rpx;
+  text-align: center;
+}
+
+.tab.active {
+  background: #ffffff;
+  color: #2563eb;
+  font-weight: 700;
+}
+
+.course-list {
+  display: grid;
+  gap: 18rpx;
+}

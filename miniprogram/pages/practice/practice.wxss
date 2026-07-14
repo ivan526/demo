@@ -1,0 +1,57 @@
+.practice-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24rpx;
+  border-radius: 8rpx;
+  background: #ffffff;
+}
+
+.course-name {
+  margin-bottom: 8rpx;
+  font-size: 34rpx;
+  font-weight: 800;
+}
+
+.combo {
+  padding: 10rpx 16rpx;
+  border-radius: 8rpx;
+  background: #dcfce7;
+  color: #166534;
+  font-weight: 700;
+}
+
+.sentence-panel {
+  display: grid;
+  gap: 18rpx;
+}
+
+.chinese {
+  padding: 28rpx;
+  border-radius: 8rpx;
+  background: #ffffff;
+  font-size: 36rpx;
+  font-weight: 800;
+  line-height: 52rpx;
+}
+
+.phonetic {
+  padding: 18rpx 24rpx;
+  border-radius: 8rpx;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16rpx;
+}
+
+.result {
+  display: grid;
+  gap: 18rpx;
+  padding: 28rpx;
+  border-radius: 8rpx;
+  background: #ffffff;
+}

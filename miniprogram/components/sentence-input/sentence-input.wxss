@@ -1,0 +1,41 @@
+.sentence-input {
+  padding: 24rpx;
+  border-radius: 8rpx;
+  background: #ffffff;
+}
+
+.target {
+  min-height: 72rpx;
+  margin-bottom: 18rpx;
+  line-height: 44rpx;
+}
+
+.target-char {
+  display: inline-block;
+  min-width: 18rpx;
+  color: #94a3b8;
+}
+
+.target-char.correct {
+  color: #059669;
+}
+
+.target-char.wrong {
+  color: #dc2626;
+  background: #fee2e2;
+}
+
+.input {
+  height: 84rpx;
+  padding: 0 20rpx;
+  border: 2rpx solid #cbd5e1;
+  border-radius: 8rpx;
+  background: #f8fafc;
+  font-size: 30rpx;
+}
+
+.hint {
+  margin-top: 14rpx;
+  color: #dc2626;
+  font-size: 24rpx;
+}

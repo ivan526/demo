@@ -1,0 +1,29 @@
+<view class="page">
+  <view class="tabs section">
+    <view class="tab {{activeTab === 'builtin' ? 'active' : ''}}" data-tab="builtin" bindtap="switchTab">内置课程</view>
+    <view class="tab {{activeTab === 'custom' ? 'active' : ''}}" data-tab="custom" bindtap="switchTab">我的课程</view>
+  </view>
+
+  <view class="course-list" wx:if="{{activeTab === 'builtin'}}">
+    <course-card
+      wx:for="{{builtinCourses}}"
+      wx:key="course_id"
+      course="{{item}}"
+      bind:select="onCourseSelect"
+    />
+  </view>
+
+  <view wx:if="{{activeTab === 'custom'}}">
+    <view class="empty-state" wx:if="{{!customCourses.length}}">
+      还没有自定义课程，后续可通过 AI 生成或 JSON 导入添加。
+    </view>
+    <view class="course-list" wx:else>
+      <course-card
+        wx:for="{{customCourses}}"
+        wx:key="course_id"
+        course="{{item}}"
+        bind:select="onCourseSelect"
+      />
+    </view>
+  </view>
+</view>

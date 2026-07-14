@@ -1,0 +1,30 @@
+<view class="page">
+  <view class="section stats-grid">
+    <stat-card label="累计时长" value="{{stats.totalDuration}}" />
+    <stat-card label="总正确率" value="{{stats.totalAccuracy}}" />
+    <stat-card label="最高连击" value="{{stats.bestCombo}}" />
+    <stat-card label="学习天数" value="{{stats.activeDays}}" />
+  </view>
+
+  <view class="section">
+    <view class="section-title">最近 7 天</view>
+    <view class="trend">
+      <view class="trend-item" wx:for="{{stats.recentDays}}" wx:key="date">
+        <view class="bar" style="height: {{item.duration > 0 ? 90 : 12}}rpx;"></view>
+        <view class="date">{{item.date}}</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-title">练习记录</view>
+    <view class="empty-state" wx:if="{{!stats.records.length}}">完成一次练习后，这里会展示记录。</view>
+    <view class="record" wx:for="{{stats.records}}" wx:key="record_id">
+      <view>
+        <view class="record-title">{{item.course_name}}</view>
+        <view class="muted">{{item.displayTime}}</view>
+      </view>
+      <view class="record-result">{{item.displayAccuracy}} · {{item.displayDuration}}</view>
+    </view>
+  </view>
+</view>

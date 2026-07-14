@@ -1,0 +1,47 @@
+.profile,
+.settings {
+  border-radius: 8rpx;
+  background: #ffffff;
+}
+
+.profile {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 28rpx;
+}
+
+.avatar {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 50%;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 38rpx;
+  font-weight: 800;
+  line-height: 96rpx;
+  text-align: center;
+}
+
+.name {
+  margin-bottom: 8rpx;
+  font-size: 34rpx;
+  font-weight: 800;
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 28rpx;
+  border-bottom: 2rpx solid #f1f5f9;
+}
+
+.setting-row:last-child {
+  border-bottom: 0;
+}
+
+.setting-title {
+  margin-bottom: 8rpx;
+  font-weight: 700;
+}

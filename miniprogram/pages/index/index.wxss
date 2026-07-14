@@ -1,0 +1,28 @@
+.hero {
+  padding: 34rpx 28rpx;
+  border-radius: 8rpx;
+  background: #0f172a;
+  color: #ffffff;
+}
+
+.hero-title {
+  font-size: 46rpx;
+  font-weight: 900;
+}
+
+.hero-subtitle {
+  margin: 14rpx 0 28rpx;
+  color: #cbd5e1;
+  line-height: 44rpx;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16rpx;
+}
+
+.course-list {
+  display: grid;
+  gap: 18rpx;
+}

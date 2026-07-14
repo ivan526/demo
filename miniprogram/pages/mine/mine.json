@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "我的",
+  "usingComponents": {
+    "common-dialog": "../../components/common-dialog/common-dialog"
+  }
+}

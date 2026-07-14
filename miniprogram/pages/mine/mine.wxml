@@ -1,0 +1,39 @@
+<view class="page">
+  <view class="profile section">
+    <view class="avatar">{{userInfo.is_login ? '微' : '游'}}</view>
+    <view>
+      <view class="name">{{userInfo.is_login ? userInfo.nickname : '游客模式'}}</view>
+      <view class="muted">{{userInfo.is_login ? '已登录，可同步学习数据' : '未登录也可使用本地练习'}}</view>
+    </view>
+  </view>
+
+  <view class="section" wx:if="{{!userInfo.is_login}}">
+    <button class="primary-button" bindtap="openLoginDialog">微信登录</button>
+  </view>
+
+  <view class="settings section">
+    <view class="setting-row">
+      <view>
+        <view class="setting-title">练习音效</view>
+        <view class="muted">输入反馈提示音</view>
+      </view>
+      <switch checked="{{config.sound_enabled}}" bindchange="toggleSound" />
+    </view>
+    <view class="setting-row">
+      <view>
+        <view class="setting-title">自动跳题</view>
+        <view class="muted">句子输入正确后自动进入下一句</view>
+      </view>
+      <switch checked="{{config.auto_next}}" bindchange="toggleAutoNext" />
+    </view>
+  </view>
+
+  <common-dialog
+    visible="{{loginDialogVisible}}"
+    title="微信登录"
+    content="登录后会把本地练习记录、课程和设置同步到云端。"
+    confirm-text="登录"
+    bind:confirm="confirmLogin"
+    bind:cancel="closeLoginDialog"
+  />
+</view>

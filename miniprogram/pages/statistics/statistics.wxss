@@ -1,0 +1,52 @@
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16rpx;
+}
+
+.trend {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  align-items: end;
+  min-height: 170rpx;
+  padding: 24rpx 18rpx;
+  border-radius: 8rpx;
+  background: #ffffff;
+}
+
+.trend-item {
+  display: grid;
+  justify-items: center;
+  gap: 10rpx;
+}
+
+.bar {
+  width: 26rpx;
+  border-radius: 8rpx 8rpx 0 0;
+  background: #2563eb;
+}
+
+.date {
+  color: #64748b;
+  font-size: 20rpx;
+}
+
+.record {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14rpx;
+  padding: 22rpx;
+  border-radius: 8rpx;
+  background: #ffffff;
+}
+
+.record-title {
+  margin-bottom: 8rpx;
+  font-weight: 700;
+}
+
+.record-result {
+  color: #2563eb;
+  font-weight: 700;
+}

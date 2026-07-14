@@ -1,0 +1,10 @@
+<view class="mask" wx:if="{{visible}}">
+  <view class="dialog">
+    <view class="title">{{title}}</view>
+    <view class="content">{{content}}</view>
+    <view class="actions">
+      <button wx:if="{{showCancel}}" class="cancel" bindtap="onCancel">{{cancelText}}</button>
+      <button class="confirm" bindtap="onConfirm">{{confirmText}}</button>
+    </view>
+  </view>
+</view>

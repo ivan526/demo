@@ -1,0 +1,13 @@
+{
+  "project_id": "c09d31a9-8200-467e-933d-037ab5122f8b",
+  "project_title": "AI 产品研发流水线",
+  "resources": [
+    {
+      "id": "17f09a3d-190a-46dc-bc03-cff55eb802fc",
+      "resource_type": "github_repo",
+      "resource_ref": {
+        "url": "https://github.com/ivan526/demo"
+      }
+    }
+  ]
+}

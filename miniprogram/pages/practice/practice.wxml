@@ -1,0 +1,32 @@
+<view class="page" wx:if="{{course}}">
+  <view class="practice-head section">
+    <view>
+      <view class="course-name">{{course.course_name}}</view>
+      <view class="muted">进度 {{progressText}}</view>
+    </view>
+    <view class="combo">连击 {{combo}}</view>
+  </view>
+
+  <view class="sentence-panel section" wx:if="{{!completed}}">
+    <view class="chinese">{{currentSentence.chinese}}</view>
+    <view class="phonetic">{{currentSentence.phonetic}}</view>
+    <sentence-input
+      id="sentenceInput"
+      target-sentence="{{currentSentence.english}}"
+      bind:input="onSentenceInput"
+      bind:complete="onSentenceComplete"
+    />
+  </view>
+
+  <view class="section stats-grid">
+    <stat-card label="实时正确率" value="{{accuracy}}%" />
+    <stat-card label="最高连击" value="{{bestCombo}}" />
+  </view>
+
+  <view class="result section" wx:if="{{completed}}">
+    <view class="section-title">本次练习完成</view>
+    <view class="muted">{{resultText}}</view>
+    <button class="primary-button" bindtap="restart">再练一次</button>
+    <button class="secondary-button" bindtap="backToCourses">返回课程</button>
+  </view>
+</view>

@@ -1,0 +1,21 @@
+<view class="sentence-input">
+  <view class="target" wx:if="{{targetSentence}}">
+    <text
+      wx:for="{{result.chars}}"
+      wx:key="index"
+      class="target-char {{item.status}}"
+    >{{item.char}}</text>
+  </view>
+
+  <input
+    class="input"
+    value="{{inputValue}}"
+    disabled="{{disabled}}"
+    placeholder="请输入英文句子"
+    bindinput="onInput"
+  />
+
+  <view class="hint" wx:if="{{showHint && result.wrongIndexes.length}}">
+    发现 {{result.wrongIndexes.length}} 处输入错误，请对照标红位置修正。
+  </view>
+</view>

@@ -4,7 +4,9 @@
     "pages/practice/practice",
     "pages/course/course",
     "pages/statistics/statistics",
-    "pages/mine/mine"
+    "pages/mine/mine",
+    "pages/import/import",
+    "pages/ai-generate/ai-generate"
   ],
   "window": {
     "navigationBarTitleText": "英语敲敲练",

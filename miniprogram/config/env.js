@@ -1,6 +1,6 @@
 const ENV = {
   dev: {
-    baseUrl: 'https://api.example.com',
+    baseUrl: 'http://127.0.0.1:8000',
     timeout: 10000,
     retryTimes: 1,
     aiDailyLimit: 3

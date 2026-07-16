@@ -6,7 +6,7 @@ function findCourse(courseId, source) {
   if (source === 'custom') {
     return storage.getCustomCourse(courseId);
   }
-  return builtin.builtinCourses.find((course) => course.course_id === courseId) || builtin.builtinCourses[0];
+  return builtin.builtinCourses.find((course) => course.course_id === courseId) || null;
 }
 
 Page({
@@ -28,10 +28,20 @@ Page({
 
   onLoad(query) {
     const course = findCourse(query.courseId, query.source);
+    if (!course) {
+      wx.showToast({ title: '课程不存在', icon: 'none' });
+      setTimeout(() => wx.navigateBack({ delta: 1 }), 800);
+      return;
+    }
     this.startCourse(course);
   },
 
   startCourse(course) {
+    if (!course || !Array.isArray(course.sentences) || course.sentences.length === 0) {
+      wx.showToast({ title: '课程数据异常', icon: 'none' });
+      setTimeout(() => wx.navigateBack({ delta: 1 }), 800);
+      return;
+    }
     const currentSentence = course.sentences[0];
     this.setData({
       course,
@@ -122,7 +132,7 @@ Page({
       accuracy,
       max_combo: bestCombo,
       duration,
-      practice_time: Date.now()
+      practice_time: new Date().toISOString()
     });
 
     this.setData({

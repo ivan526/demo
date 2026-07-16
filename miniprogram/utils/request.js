@@ -56,6 +56,13 @@ function request(options) {
           return;
         }
 
+        if (body.code === 4011) {
+          const userInfo = storage.getUserInfo();
+          if (userInfo) {
+            storage.saveUserInfo({ is_login: false, token: '', openid: '' });
+          }
+        }
+
         const message = env.errorCodes[body.code] || body.message || '请求失败，请稍后重试';
         reject({ code: body.code || response.statusCode, message });
       },

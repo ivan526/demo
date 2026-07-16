@@ -1,0 +1,59 @@
+<view class="container">
+  <view class="header">
+    <text class="title">导入自定义课程</text>
+    <text class="subtitle">粘贴JSON格式的课程数据即可导入</text>
+  </view>
+
+  <view class="action-bar">
+    <button class="btn btn-outline" bindtap="showTemplateModal">查看模板</button>
+    <button class="btn btn-outline" bindtap="clearInput">清空</button>
+  </view>
+
+  <view class="input-container">
+    <textarea
+      class="json-input"
+      placeholder="在此粘贴JSON课程数据..."
+      value="{{jsonInput}}"
+      bindinput="onInputChange"
+      auto-height
+      maxlength="10000"
+    />
+  </view>
+
+  <view class="error-message" wx:if="{{errorMessage}}">
+    <text class="error-text">{{errorMessage}}</text>
+  </view>
+
+  <button class="btn btn-primary import-btn" bindtap="validateAndImport">
+    验证并导入
+  </button>
+
+  <view class="tips">
+    <text class="tips-title">导入说明：</text>
+    <view class="tips-item">• course_name：课程名称（必填）</view>
+    <view class="tips-item">• description：课程描述</view>
+    <view class="tips-item">• difficulty：难度（easy/medium/hard）</view>
+    <view class="tips-item">• sentences：句子数组，包含english、chinese、phonetic</view>
+  </view>
+</view>
+
+<view class="modal-overlay" wx:if="{{showTemplate}}" bindtap="hideTemplateModal">
+  <view class="modal-content" catchtap="stopPropagation">
+    <view class="modal-header">
+      <text class="modal-title">JSON模板</text>
+      <text class="modal-close" bindtap="hideTemplateModal">×</text>
+    </view>
+    <view class="modal-body">
+      <text class="template-text">{{template}}</text>
+    </view>
+    <view class="modal-footer">
+      <button class="btn btn-outline" bindtap="copyTemplate">复制模板</button>
+      <button class="btn btn-primary" bindtap="useTemplate">使用模板</button>
+    </view>
+  </view>
+</view>
+
+<view class="success-toast" wx:if="{{showSuccess}}">
+  <text class="success-icon">✓</text>
+  <text class="success-text">课程导入成功！</text>
+</view>

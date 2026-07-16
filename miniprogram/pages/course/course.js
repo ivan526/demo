@@ -27,5 +27,17 @@ Page({
     wx.navigateTo({
       url: `/pages/practice/practice?courseId=${course.course_id}&source=${source}`
     });
+  },
+
+  goToImport() {
+    wx.navigateTo({
+      url: '/pages/import/import'
+    });
+  },
+
+  goToAIGenerate() {
+    wx.navigateTo({
+      url: '/pages/ai-generate/ai-generate'
+    });
   }
 });

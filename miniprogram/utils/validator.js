@@ -106,20 +106,31 @@ function validatePracticeRecord(record) {
 function compareInput(input, target) {
   const inputText = String(input || '');
   const targetText = String(target || '');
-  const chars = targetText.split('').map((char, index) => {
-    const typed = inputText[index] || '';
-    const status = !typed ? 'pending' : typed === char ? 'correct' : 'wrong';
-    return { char, typed, status };
-  });
+  const compareLen = Math.max(inputText.length, targetText.length);
+  const chars = [];
+  for (let i = 0; i < compareLen; i++) {
+    const char = targetText[i] || '';
+    const typed = inputText[i] || '';
+    let status;
+    if (i >= targetText.length) {
+      status = 'wrong';
+    } else if (!typed) {
+      status = 'pending';
+    } else {
+      status = typed === char ? 'correct' : 'wrong';
+    }
+    chars.push({ char, typed, status });
+  }
   const wrongIndexes = chars
     .map((item, index) => (item.status === 'wrong' ? index : -1))
     .filter((index) => index >= 0);
+  const correctCount = chars.filter((item) => item.status === 'correct').length;
 
   return {
     chars,
     wrongIndexes,
     completed: inputText === targetText,
-    accuracy: targetText.length ? Math.round(((targetText.length - wrongIndexes.length) / targetText.length) * 100) : 0
+    accuracy: targetText.length ? Math.round((correctCount / targetText.length) * 100) : 0
   };
 }
 

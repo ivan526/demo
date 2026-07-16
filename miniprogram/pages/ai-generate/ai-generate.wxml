@@ -1,0 +1,93 @@
+<view class="container">
+  <view class="section">
+    <view class="section-title">课程主题</view>
+    <input
+      class="topic-input"
+      placeholder="例如：商务英语、旅行常用语、职场沟通"
+      value="{{topic}}"
+      bindinput="onTopicInput"
+      maxlength="50"
+    />
+  </view>
+
+  <view class="section">
+    <view class="section-title">选择难度</view>
+    <view class="difficulty-options">
+      <view
+        wx:for="{{difficulties}}"
+        wx:key="value"
+        class="option {{selectedDifficulty === item.value ? 'active' : ''}}"
+        data-value="{{item.value}}"
+        bindtap="selectDifficulty"
+      >
+        <text class="option-label">{{item.label}}</text>
+        <text class="option-desc">{{item.desc}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-title">句子数量</view>
+    <view class="count-options">
+      <view
+        wx:for="{{sentenceCounts}}"
+        wx:key="*this"
+        class="count-option {{selectedCount === item ? 'active' : ''}}"
+        data-value="{{item}}"
+        bindtap="selectCount"
+      >
+        {{item}}句
+      </view>
+    </view>
+  </view>
+
+  <button
+    class="generate-btn"
+    bindtap="generateCourse"
+    disabled="{{isGenerating}}"
+    loading="{{isGenerating}}"
+  >
+    {{isGenerating ? '正在生成...' : '✨ 生成课程'}}
+  </button>
+
+  <view class="tips">
+    <text class="tips-title">💡 使用提示</text>
+    <view class="tips-item">• 输入具体的主题可以获得更好的效果</view>
+    <view class="tips-item">• 推荐主题：商务会议、旅行对话、日常购物、校园生活等</view>
+    <view class="tips-item">• 生成的课程可以在"我的课程"中查看和练习</view>
+  </view>
+</view>
+
+<view class="modal-overlay" wx:if="{{showPreview}}" bindtap="closePreview">
+  <view class="modal-content" catchtap="stopPropagation">
+    <view class="modal-header">
+      <text class="modal-title">预览课程</text>
+      <text class="modal-close" bindtap="closePreview">×</text>
+    </view>
+    
+    <view class="modal-body">
+      <view class="course-preview-info">
+        <text class="preview-name">{{generatedCourse.course_name}}</text>
+        <text class="preview-desc">{{generatedCourse.description}}</text>
+      </view>
+
+      <scroll-view class="preview-scroll" scroll-y>
+        <view class="sentence-list">
+          <view wx:for="{{generatedSentences}}" wx:key="index" class="sentence-item">
+            <view class="sentence-number">{{index + 1}}</view>
+            <view class="sentence-content">
+              <text class="sentence-en">{{item.english}}</text>
+              <text class="sentence-ph">{{item.phonetic}}</text>
+              <text class="sentence-cn">{{item.chinese}}</text>
+            </view>
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+
+    <view class="modal-footer">
+      <button class="btn btn-outline" bindtap="regenerate">重新生成</button>
+      <button class="btn btn-primary" bindtap="saveCourse">保存课程</button>
+    </view>
+  </view>
+</view>

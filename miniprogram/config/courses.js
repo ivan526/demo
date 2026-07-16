@@ -24,7 +24,7 @@ const builtinCourses = [
     course_name: '职场表达入门',
     description: '会议、沟通和任务协作中的高频表达，提升职场沟通效率',
     difficulty: 'medium',
-    category: '商务',
+    category: '工作',
     sentence_count: 10,
     sentences: [
       { english: 'Let us schedule a meeting for tomorrow.', chinese: '我们把会议安排在明天吧。', phonetic: '/let ʌs ˈskedʒuːl ə ˈmiːtɪŋ fɔːr təˈmɑːroʊ/' },
@@ -104,7 +104,7 @@ const builtinCourses = [
     course_name: '面试英语必备',
     description: '自我介绍、回答问题、表达优势的面试常用表达',
     difficulty: 'medium',
-    category: '求职',
+    category: '面试',
     sentence_count: 10,
     sentences: [
       { english: 'Tell me about yourself.', chinese: '介绍一下你自己。', phonetic: '/tel miː əˈbaʊt jɔːrˈself/' },
@@ -177,6 +177,26 @@ const builtinCourses = [
       { english: 'Call me when you get home.', chinese: '到家后给我打电话。', phonetic: '/kɔːl miː wen juː ɡet həʊm/' },
       { english: 'How old are your children?', chinese: '你的孩子多大了？', phonetic: '/haʊ əʊld ɑːr jɔːr ˈtʃɪldrən/' },
       { english: 'Happy birthday!', chinese: '生日快乐！', phonetic: '/ˈhæpi ˈbɜːθdeɪ/' }
+    ]
+  },
+  {
+    course_id: 'builtin-business-advanced',
+    course_name: '商务英语进阶',
+    description: '商务谈判、邮件写作、客户沟通、演示汇报的专业英语表达',
+    difficulty: 'hard',
+    category: '商务',
+    sentence_count: 10,
+    sentences: [
+      { english: 'I would like to discuss our proposed partnership.', chinese: '我想讨论一下我们的合作提议。', phonetic: '/aɪ wʊd laɪk tuː dɪˈskʌs ˈaʊər prəˈpəʊzd ˈpɑːrtnərʃɪp/' },
+      { english: 'Could you please send me the quotation by email?', chinese: '你能通过邮件把报价单发给我吗？', phonetic: '/kʊd juː pliːz send miː ðə kwəʊˈteɪʃn baɪ ˈiːmeɪl/' },
+      { english: 'We are looking forward to your early reply.', chinese: '我们期待您的早日回复。', phonetic: '/wiː ɑːr ˈlʊkɪŋ ˈfɔːrwərd tuː jɔːr ˈɜːli rɪˈplaɪ/' },
+      { english: 'Please find the attached document for your review.', chinese: '请查收附件供您审阅。', phonetic: '/pliːz faɪnd ði əˈtætʃt ˈdɒkjumənt fɔːr jɔːr rɪˈvjuː/' },
+      { english: 'I would like to schedule a conference call for next week.', chinese: '我想安排一个下周的电话会议。', phonetic: '/aɪ wʊd laɪk tuː ˈskedʒuːl ə ˈkɒnfərəns kɔːl fɔːr nekst wiːk/' },
+      { english: 'Our company specializes in software development.', chinese: '我们公司专注于软件开发。', phonetic: '/ˈaʊər ˈkʌmpəni ˈspeʃəlaɪz ɪn ˈsɒftweə dɪˈveləpmənt/' },
+      { english: 'I would like to present our new product line.', chinese: '我想介绍一下我们的新产品线。', phonetic: '/aɪ wʊd laɪk tuː prɪˈzent ˈaʊər nuː ˈprɒdʌkt laɪn/' },
+      { english: 'What are your payment terms?', chinese: '你们的付款条件是什么？', phonetic: '/wʌt ɑːr jɔːr ˈpeɪmənt tɜːmz/' },
+      { english: 'We need to negotiate the contract details.', chinese: '我们需要协商合同细节。', phonetic: '/wiː niːd tuː nɪˈɡəʊʃieɪt ðə ˈkɒntrækt ˈdiːteɪlz/' },
+      { english: 'Thank you for your business.', chinese: '感谢您的合作。', phonetic: '/θæŋk juː fɔːr jɔːr ˈbɪznəs/' }
     ]
   }
 ];

@@ -14,8 +14,20 @@
   </view>
 
   <view wx:if="{{activeTab === 'custom'}}">
+    <view class="action-bar">
+      <button class="import-btn ai-btn" bindtap="goToAIGenerate">
+        <text class="icon">✨</text>
+        <text class="text">AI生成</text>
+      </button>
+      <button class="import-btn" bindtap="goToImport">
+        <text class="icon">+</text>
+        <text class="text">导入课程</text>
+      </button>
+    </view>
     <view class="empty-state" wx:if="{{!customCourses.length}}">
-      还没有自定义课程，后续可通过 AI 生成或 JSON 导入添加。
+      <text class="empty-icon">📚</text>
+      <text class="empty-title">还没有自定义课程</text>
+      <text class="empty-desc">点击上方按钮导入JSON课程</text>
     </view>
     <view class="course-list" wx:else>
       <course-card

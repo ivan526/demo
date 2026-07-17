@@ -49,7 +49,7 @@ DOUBAO_API_KEY = os.getenv("DOUBAO_API_KEY", "")
 DOUBAO_API_ENDPOINT = "https://ark.cn-beijing.volces.com/api/v3/chat/completions"
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, "english_practice.db")
+DB_PATH = os.environ.get("TEST_DB_PATH") or os.path.join(BASE_DIR, "english_practice.db")
 
 SHANGHAI_TZ = timezone(timedelta(hours=8))
 UTC_TZ = timezone.utc
@@ -235,12 +235,30 @@ def init_db():
         question_id TEXT NOT NULL,
         english TEXT NOT NULL,
         chinese TEXT NOT NULL,
+        phonetic TEXT NOT NULL DEFAULT '',
         user_answer TEXT NOT NULL,
         correct_answer TEXT NOT NULL,
         is_correct BOOLEAN NOT NULL,
         created_at TIMESTAMP NOT NULL,
         FOREIGN KEY (record_id) REFERENCES user_practice_records(id) ON DELETE CASCADE,
         UNIQUE(record_id, question_id)
+    )
+    ''')
+
+    # 为旧表添加 phonetic 字段
+    cursor.execute("PRAGMA table_info(user_practice_answers)")
+    ans_columns = [row["name"] for row in cursor.fetchall()]
+    if "phonetic" not in ans_columns:
+        cursor.execute("ALTER TABLE user_practice_answers ADD COLUMN phonetic TEXT NOT NULL DEFAULT ''")
+
+    # 错题重练映射表：记录重试会话与原会话的关系
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS practice_session_retries (
+        retry_session_id TEXT PRIMARY KEY,
+        original_session_id TEXT NOT NULL,
+        openid TEXT NOT NULL,
+        created_at TIMESTAMP NOT NULL,
+        UNIQUE(original_session_id, openid)
     )
     ''')
 
@@ -342,6 +360,7 @@ class Answer(BaseModel):
     questionId: str = Field(min_length=1, max_length=128)
     english: str = Field(min_length=1, max_length=2000)
     chinese: str = Field(min_length=1, max_length=2000)
+    phonetic: Optional[str] = Field(default="", max_length=500)
     userAnswer: str = Field(min_length=0, max_length=2000)
     correctAnswer: str = Field(min_length=1, max_length=2000)
     isCorrect: bool
@@ -376,6 +395,7 @@ class PracticeRecordRequest(BaseModel):
 class SyncCourseSentence(BaseModel):
     english: str = Field(min_length=1, max_length=2000)
     chinese: str = Field(min_length=1, max_length=2000)
+    phonetic: Optional[str] = Field(default="", max_length=500)
     audio_url: Optional[str] = ""
 
 
@@ -643,16 +663,26 @@ async def upload_practice_record(req: PracticeRecordRequest, current_user: dict 
 
         now = utcnow_iso()
         conn.execute("BEGIN IMMEDIATE")
+
+        # 检查是否为重试会话：从映射表获取 original_record_id
+        retry_mapping = conn.execute(
+            "SELECT original_session_id FROM practice_session_retries WHERE retry_session_id = ? AND openid = ?",
+            (req.record_id, openid),
+        ).fetchone()
+        original_record_id = retry_mapping["original_session_id"] if retry_mapping else None
+
         conn.execute('''
         INSERT INTO user_practice_records (
             id, openid, course_id, course_name, total_sentences, correct_count,
-            max_combo, accuracy, duration, practice_date, practice_time, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            max_combo, accuracy, duration, practice_date, practice_time,
+            original_record_id, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             req.record_id, openid, req.course_id, req.course_name,
             req.total_sentences, req.correct_count, req.max_combo,
             server_accuracy, req.duration, practice_date.isoformat(),
-            client_dt.strftime("%Y-%m-%dT%H:%M:%SZ"), now, now,
+            client_dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            original_record_id, now, now,
         ))
 
         # 保存每题答题详情
@@ -660,10 +690,11 @@ async def upload_practice_record(req: PracticeRecordRequest, current_user: dict 
             for answer in req.answers:
                 conn.execute('''
                 INSERT OR IGNORE INTO user_practice_answers (
-                    record_id, question_id, english, chinese, user_answer, correct_answer, is_correct, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    record_id, question_id, english, chinese, phonetic, user_answer, correct_answer, is_correct, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     req.record_id, answer.questionId, answer.english, answer.chinese,
+                    answer.phonetic or "",
                     answer.userAnswer, answer.correctAnswer, answer.isCorrect, now
                 ))
 
@@ -783,10 +814,11 @@ async def sync_data(req: SyncRequest, current_user: dict = Depends(get_current_u
                 for answer in record.answers:
                     conn.execute('''
                     INSERT OR IGNORE INTO user_practice_answers (
-                        record_id, question_id, english, chinese, user_answer, correct_answer, is_correct, created_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        record_id, question_id, english, chinese, phonetic, user_answer, correct_answer, is_correct, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ''', (
                         record.record_id, answer.questionId, answer.english, answer.chinese,
+                        getattr(answer, 'phonetic', "") or "",
                         answer.userAnswer, answer.correctAnswer, answer.isCorrect, now
                     ))
 
@@ -884,16 +916,15 @@ async def get_practice_result(session_id: str, current_user: dict = Depends(get_
     openid = current_user["openid"]
     conn = get_db_connection()
     try:
-        # 校验练习会话是否存在且属于当前用户
         record = conn.execute('''
             SELECT * FROM user_practice_records WHERE id = ? AND openid = ?
         ''', (session_id, openid)).fetchone()
         if not record:
             raise HTTPException(status_code=404, detail="练习会话不存在")
-        
-        # 获取错题列表
+
         mistakes = conn.execute('''
-            SELECT question_id, chinese, user_answer, correct_answer FROM user_practice_answers
+            SELECT question_id, english, chinese, phonetic, user_answer, correct_answer
+            FROM user_practice_answers
             WHERE record_id = ? AND is_correct = 0
             ORDER BY id
         ''', (session_id,)).fetchall()
@@ -907,9 +938,11 @@ async def get_practice_result(session_id: str, current_user: dict = Depends(get_
             "mistakes": [
                 {
                     "questionId": m["question_id"],
+                    "english": m["english"],
                     "chinese": m["chinese"],
+                    "phonetic": m["phonetic"] or "",
                     "userAnswer": m["user_answer"],
-                    "correctAnswer": m["correct_answer"]
+                    "correctAnswer": m["correct_answer"],
                 } for m in mistakes
             ]
         })
@@ -922,80 +955,56 @@ async def create_retry_session(session_id: str, current_user: dict = Depends(get
     openid = current_user["openid"]
     conn = get_db_connection()
     try:
-        conn.execute("BEGIN IMMEDIATE")
-
-        # 校验原练习会话是否存在且属于当前用户
+        # 校验原练习会话是否存在且属于当前用户（只读校验，先不开事务）
         original_record = conn.execute('''
-            SELECT * FROM user_practice_records WHERE id = ? AND openid = ?
+            SELECT id, course_id, course_name FROM user_practice_records WHERE id = ? AND openid = ?
         ''', (session_id, openid)).fetchone()
         if not original_record:
             raise HTTPException(status_code=404, detail="练习会话不存在")
-        
-        # 幂等性检查：是否已经创建过重试会话
+
+        # 获取错题列表
+        mistakes = conn.execute('''
+            SELECT question_id, english, chinese, phonetic, correct_answer
+            FROM user_practice_answers
+            WHERE record_id = ? AND is_correct = 0
+            ORDER BY id
+        ''', (session_id,)).fetchall()
+
+        if not mistakes:
+            raise HTTPException(status_code=400, detail="该练习没有错题，无需重练")
+
+        now = utcnow_iso()
+        conn.execute("BEGIN IMMEDIATE")
+
+        # 幂等性检查：是否已经创建过重试会话映射
         existing_retry = conn.execute('''
-            SELECT id FROM user_practice_records WHERE original_record_id = ? AND openid = ?
-            LIMIT 1
+            SELECT retry_session_id FROM practice_session_retries
+            WHERE original_session_id = ? AND openid = ?
         ''', (session_id, openid)).fetchone()
+
         if existing_retry:
-            retry_session_id = existing_retry["id"]
-        else:
-            # 获取错题列表
-            mistakes = conn.execute('''
-                SELECT question_id, english, chinese, correct_answer FROM user_practice_answers
-                WHERE record_id = ? AND is_correct = 0
-                ORDER BY id
-            ''', (session_id,)).fetchall()
-
-            if not mistakes:
-                raise HTTPException(status_code=400, detail="该练习没有错题，无需重练")
-            
-            # 创建新的重试会话
-            retry_session_id = f"retry_{session_id}_{uuid.uuid4().hex[:8]}"
-            now = utcnow_iso()
-            practice_date = shanghai_today()
-            
-            # 插入练习记录
-            conn.execute('''
-            INSERT INTO user_practice_records (
-                id, openid, course_id, course_name, total_sentences, correct_count,
-                max_combo, accuracy, duration, practice_date, practice_time, 
-                original_record_id, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                retry_session_id, openid, original_record["course_id"], 
-                f"[错题重练] {original_record['course_name']}", len(mistakes),
-                0, 0, 0.0, 0, practice_date.isoformat(), now,
-                session_id, now, now
-            ))
-
-            # 插入答题详情（预填正确答案，用户答题后会更新）
-            for mistake in mistakes:
-                conn.execute('''
-                INSERT OR IGNORE INTO user_practice_answers (
-                    record_id, question_id, english, chinese, user_answer, correct_answer, is_correct, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (
-                    retry_session_id, mistake["question_id"], mistake["english"],
-                    mistake["chinese"], "", mistake["correct_answer"], False, now
-                ))
-
+            retry_session_id = existing_retry["retry_session_id"]
             conn.commit()
-        
-        # 返回重试会话信息
-        questions = conn.execute('''
-            SELECT english, chinese FROM user_practice_answers
-            WHERE record_id = ? ORDER BY id
-        ''', (retry_session_id,)).fetchall()
+        else:
+            retry_session_id = f"retry_{session_id}_{uuid.uuid4().hex[:8]}"
+            conn.execute('''
+            INSERT INTO practice_session_retries (
+                retry_session_id, original_session_id, openid, created_at
+            ) VALUES (?, ?, ?, ?)
+            ''', (retry_session_id, session_id, openid, now))
+            conn.commit()
 
         return envelope(0, "success", {
             "sessionId": retry_session_id,
-            "questionCount": len(questions),
+            "questionCount": len(mistakes),
             "questions": [
                 {
-                    "english": q["english"],
-                    "chinese": q["chinese"],
-                    "audio_url": ""
-                } for q in questions
+                    "questionId": m["question_id"],
+                    "english": m["english"],
+                    "chinese": m["chinese"],
+                    "phonetic": m["phonetic"] or "",
+                    "audio_url": "",
+                } for m in mistakes
             ]
         })
     except HTTPException:

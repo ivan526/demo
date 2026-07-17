@@ -42,7 +42,8 @@ Page({
     totalSentences: 0,
     wrongCount: 0,
     isAllCorrect: false,
-    isWrongReviewMode: false
+    isWrongReviewMode: false,
+    currentSentenceHadError: false
   },
 
   onLoad(query) {
@@ -83,7 +84,8 @@ Page({
       totalSentences: course.sentences.length,
       wrongCount: 0,
       isAllCorrect: false,
-      isWrongReviewMode: isWrongReviewMode || false
+      isWrongReviewMode: isWrongReviewMode || false,
+      currentSentenceHadError: false
     });
   },
 
@@ -91,23 +93,31 @@ Page({
     const result = (event && event.detail && event.detail.result) || {};
     const value = (event && event.detail && event.detail.value) || '';
     const accuracy = typeof result.accuracy === 'number' ? result.accuracy : 0;
-    this.setData({
-      accuracy,
-      currentUserInput: value
-    });
+    const hasWrong = Array.isArray(result.wrongIndexes) && result.wrongIndexes.length > 0;
+
+    const patch = { accuracy, currentUserInput: value };
+    if (hasWrong && !this.data.currentSentenceHadError) {
+      patch.currentSentenceHadError = true;
+      patch.combo = 0;
+      patch.bestCombo = Math.max(this.data.bestCombo, 0);
+    }
+    this.setData(patch);
   },
 
   onSentenceComplete(event) {
     const nextIndex = this.data.currentIndex + 1;
-    const combo = this.data.combo + 1;
-    const bestCombo = Math.max(this.data.bestCombo, combo);
     const currentSentence = this.data.currentSentence;
-    const result = (event && event.detail && event.detail.result) || { accuracy: 0 };
+    const result = (event && event.detail && event.detail.result) || { accuracy: 0, wrongIndexes: [] };
     const userInput = event && event.detail ? event.detail.value : this.data.currentUserInput;
     const sentenceLength = currentSentence.english.length;
     const currentAccuracy = typeof result.accuracy === 'number' ? result.accuracy : 0;
     const errorChars = Math.round(sentenceLength * (1 - currentAccuracy / 100));
-    const isCorrect = currentAccuracy === 100;
+    const finalHadError = this.data.currentSentenceHadError
+      || (Array.isArray(result.wrongIndexes) && result.wrongIndexes.length > 0);
+    const isCorrect = !finalHadError && currentAccuracy === 100;
+
+    const combo = isCorrect ? this.data.combo + 1 : 0;
+    const bestCombo = Math.max(this.data.bestCombo, combo);
 
     const record = {
       index: this.data.currentIndex,
@@ -142,7 +152,8 @@ Page({
       bestCombo,
       correctCount: newCorrectCount,
       accuracy: 100,
-      currentUserInput: ''
+      currentUserInput: '',
+      currentSentenceHadError: false
     });
 
     const input = this.selectComponent('#sentenceInput');

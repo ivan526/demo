@@ -6,6 +6,18 @@ function findCourse(courseId, source) {
   if (source === 'custom') {
     return storage.getCustomCourse(courseId);
   }
+  if (source === 'wrongReview') {
+    // 错题重练模式 - 从临时存储获取
+    const wrongQuestions = storage.getTempWrongQuestions();
+    if (Array.isArray(wrongQuestions) && wrongQuestions.length > 0) {
+      return {
+        course_id: `wrong_review_${Date.now()}`,
+        course_name: '错题回顾',
+        sentences: wrongQuestions
+      };
+    }
+    return null;
+  }
   return builtin.builtinCourses.find((course) => course.course_id === courseId) || null;
 }
 
@@ -23,20 +35,28 @@ Page({
     totalErrorChars: 0,
     startedAt: 0,
     completed: false,
-    resultText: ''
+    resultText: '',
+    currentUserInput: '',
+    answerRecords: [],
+    wrongQuestions: [],
+    totalSentences: 0,
+    wrongCount: 0,
+    isAllCorrect: false,
+    isWrongReviewMode: false
   },
 
   onLoad(query) {
+    const isWrongReviewMode = query.source === 'wrongReview';
     const course = findCourse(query.courseId, query.source);
     if (!course) {
       wx.showToast({ title: '课程不存在', icon: 'none' });
       setTimeout(() => wx.navigateBack({ delta: 1 }), 800);
       return;
     }
-    this.startCourse(course);
+    this.startCourse(course, isWrongReviewMode);
   },
 
-  startCourse(course) {
+  startCourse(course, isWrongReviewMode) {
     if (!course || !Array.isArray(course.sentences) || course.sentences.length === 0) {
       wx.showToast({ title: '课程数据异常', icon: 'none' });
       setTimeout(() => wx.navigateBack({ delta: 1 }), 800);
@@ -56,35 +76,60 @@ Page({
       totalErrorChars: 0,
       startedAt: Date.now(),
       completed: false,
-      resultText: ''
+      resultText: '',
+      currentUserInput: '',
+      answerRecords: [],
+      wrongQuestions: [],
+      totalSentences: course.sentences.length,
+      wrongCount: 0,
+      isAllCorrect: false,
+      isWrongReviewMode: isWrongReviewMode || false
     });
   },
 
   onSentenceInput(event) {
     this.setData({
-      accuracy: event.detail.result.accuracy
+      accuracy: event.detail.result.accuracy,
+      currentUserInput: event.detail.value
     });
   },
 
-  onSentenceComplete() {
+  onSentenceComplete(event) {
     const nextIndex = this.data.currentIndex + 1;
     const combo = this.data.combo + 1;
     const bestCombo = Math.max(this.data.bestCombo, combo);
-
-    // 统计当前句子的字符数和错误字符数
     const currentSentence = this.data.currentSentence;
+    const userInput = event && event.detail ? event.detail.value : this.data.currentUserInput;
     const sentenceLength = currentSentence.english.length;
     const currentAccuracy = this.data.accuracy;
     const errorChars = Math.round(sentenceLength * (1 - currentAccuracy / 100));
+    const isCorrect = currentAccuracy === 100;
+
+    // 记录答题记录
+    const record = {
+      index: this.data.currentIndex,
+      chinese: currentSentence.chinese,
+      phonetic: currentSentence.phonetic,
+      english: currentSentence.english,
+      userInput,
+      isCorrect,
+      accuracy: currentAccuracy
+    };
+
+    const answerRecords = [...this.data.answerRecords, record];
+    const wrongQuestions = isCorrect
+      ? this.data.wrongQuestions
+      : [...this.data.wrongQuestions, currentSentence];
 
     this.setData({
       totalChars: this.data.totalChars + sentenceLength,
-      totalErrorChars: this.data.totalErrorChars + errorChars
+      totalErrorChars: this.data.totalErrorChars + errorChars,
+      answerRecords,
+      wrongQuestions
     });
 
     if (nextIndex >= this.data.course.sentences.length) {
-      // 最后一句，先统计再完成
-      this.finishPractice(combo, bestCombo);
+      this.finishPractice(combo, bestCombo, answerRecords, wrongQuestions);
       return;
     }
 
@@ -95,7 +140,8 @@ Page({
       combo,
       bestCombo,
       correctCount: this.data.correctCount + 1,
-      accuracy: 100
+      accuracy: 100,
+      currentUserInput: ''
     });
 
     const input = this.selectComponent('#sentenceInput');
@@ -104,12 +150,13 @@ Page({
     }
   },
 
-  finishPractice(combo, bestCombo) {
+  finishPractice(combo, bestCombo, answerRecords, wrongQuestions) {
     const total = this.data.course.sentences.length;
     const correctCount = this.data.correctCount + 1;
+    const wrongCount = total - correctCount;
+    const isAllCorrect = wrongCount === 0;
     const duration = Math.max(1, Math.round((Date.now() - this.data.startedAt) / 1000));
 
-    // 统计最后一句
     const currentSentence = this.data.currentSentence;
     const sentenceLength = currentSentence.english.length;
     const currentAccuracy = this.data.accuracy;
@@ -118,8 +165,7 @@ Page({
     const totalChars = this.data.totalChars + sentenceLength;
     const totalErrorChars = this.data.totalErrorChars + errorChars;
 
-    // 按字符计算真实正确率
-    const accuracy = totalChars > 0 
+    const finalAccuracy = totalChars > 0 
       ? Math.round(((totalChars - totalErrorChars) / totalChars) * 100) 
       : 100;
 
@@ -129,11 +175,27 @@ Page({
       course_name: this.data.course.course_name,
       total_sentences: total,
       correct_count: correctCount,
-      accuracy,
+      accuracy: finalAccuracy,
       max_combo: bestCombo,
       duration,
       practice_time: new Date().toISOString()
     });
+
+    // 处理最后一题的记录
+    const lastRecord = {
+      index: this.data.currentIndex,
+      chinese: currentSentence.chinese,
+      phonetic: currentSentence.phonetic,
+      english: currentSentence.english,
+      userInput: this.data.currentUserInput,
+      isCorrect: currentAccuracy === 100,
+      accuracy: currentAccuracy
+    };
+
+    const finalAnswerRecords = [...answerRecords, lastRecord];
+    const finalWrongQuestions = currentAccuracy === 100
+      ? wrongQuestions
+      : [...wrongQuestions, currentSentence];
 
     this.setData({
       combo,
@@ -141,13 +203,31 @@ Page({
       correctCount,
       totalChars,
       totalErrorChars,
+      wrongCount: total - correctCount,
+      isAllCorrect: (total - correctCount) === 0,
+      answerRecords: finalAnswerRecords,
+      wrongQuestions: finalWrongQuestions,
+      formattedAccuracy: format.formatAccuracy(finalAccuracy),
       completed: true,
-      resultText: `完成 ${total} 句，正确率 ${format.formatAccuracy(accuracy)}，用时 ${format.formatDuration(duration)}。`
+      resultText: `完成 ${total} 句，正确率 ${format.formatAccuracy(finalAccuracy)}，用时 ${format.formatDuration(duration)}。`
     });
   },
 
   restart() {
-    this.startCourse(this.data.course);
+    this.startCourse(this.data.course, this.data.isWrongReviewMode);
+  },
+
+  reviewWrongQuestions() {
+    const wrongQuestions = this.data.wrongQuestions;
+    if (!Array.isArray(wrongQuestions) || wrongQuestions.length === 0) {
+      wx.showToast({ title: '没有需要复习的错题', icon: 'none' });
+      return;
+    }
+
+    storage.setTempWrongQuestions(wrongQuestions);
+    wx.redirectTo({
+      url: '/pages/practice/practice?courseId=wrong_review&source=wrongReview'
+    });
   },
 
   backToCourses() {

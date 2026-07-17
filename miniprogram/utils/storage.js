@@ -4,7 +4,8 @@ const STORAGE_KEYS = {
   userInfo: 'user_info',
   practiceRecords: 'practice_records',
   customCourses: 'custom_courses',
-  appConfig: 'app_config'
+  appConfig: 'app_config',
+  tempWrongQuestions: 'temp_wrong_questions'
 };
 
 const DEFAULT_CONFIG = {
@@ -173,6 +174,18 @@ function resetAppConfig() {
   return write(STORAGE_KEYS.appConfig, DEFAULT_CONFIG);
 }
 
+function setTempWrongQuestions(questions) {
+  return write(STORAGE_KEYS.tempWrongQuestions, Array.isArray(questions) ? questions : []);
+}
+
+function getTempWrongQuestions() {
+  return read(STORAGE_KEYS.tempWrongQuestions, []);
+}
+
+function clearTempWrongQuestions() {
+  return remove(STORAGE_KEYS.tempWrongQuestions);
+}
+
 function clearAll() {
   Object.keys(STORAGE_KEYS).forEach((key) => remove(STORAGE_KEYS[key]));
   initStorage();
@@ -198,5 +211,8 @@ module.exports = {
   getAppConfig,
   saveAppConfig,
   resetAppConfig,
+  setTempWrongQuestions,
+  getTempWrongQuestions,
+  clearTempWrongQuestions,
   clearAll
 };

@@ -133,13 +133,15 @@ Page({
       return;
     }
 
+    const newCorrectCount = isCorrect ? this.data.correctCount + 1 : this.data.correctCount;
+
     this.setData({
       currentIndex: nextIndex,
       currentSentence: this.data.course.sentences[nextIndex],
       progressText: `${nextIndex + 1}/${this.data.course.sentences.length}`,
       combo,
       bestCombo,
-      correctCount: this.data.correctCount + 1,
+      correctCount: newCorrectCount,
       accuracy: 100,
       currentUserInput: ''
     });
@@ -152,7 +154,8 @@ Page({
 
   finishPractice(combo, bestCombo, answerRecords, wrongQuestions) {
     const total = this.data.course.sentences.length;
-    const correctCount = this.data.correctCount + 1;
+    const lastIsCorrect = this.data.accuracy === 100;
+    const correctCount = lastIsCorrect ? this.data.correctCount + 1 : this.data.correctCount;
     const wrongCount = total - correctCount;
     const isAllCorrect = wrongCount === 0;
     const duration = Math.max(1, Math.round((Date.now() - this.data.startedAt) / 1000));

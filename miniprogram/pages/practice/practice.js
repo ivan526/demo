@@ -43,7 +43,8 @@ Page({
     wrongCount: 0,
     isAllCorrect: false,
     isWrongReviewMode: false,
-    currentSentenceHadError: false
+    currentSentenceHadError: false,
+    currentWrongInputSnapshot: ''
   },
 
   onLoad(query) {
@@ -85,7 +86,8 @@ Page({
       wrongCount: 0,
       isAllCorrect: false,
       isWrongReviewMode: isWrongReviewMode || false,
-      currentSentenceHadError: false
+      currentSentenceHadError: false,
+      currentWrongInputSnapshot: ''
     });
   },
 
@@ -98,6 +100,7 @@ Page({
     const patch = { accuracy, currentUserInput: value };
     if (hasWrong && !this.data.currentSentenceHadError) {
       patch.currentSentenceHadError = true;
+      patch.currentWrongInputSnapshot = value;
       patch.combo = 0;
       patch.bestCombo = Math.max(this.data.bestCombo, 0);
     }
@@ -119,12 +122,15 @@ Page({
     const combo = isCorrect ? this.data.combo + 1 : 0;
     const bestCombo = Math.max(this.data.bestCombo, combo);
 
+    const recordUserInput = isCorrect
+      ? userInput
+      : (this.data.currentWrongInputSnapshot || userInput || '');
     const record = {
       index: this.data.currentIndex,
       chinese: currentSentence.chinese,
       phonetic: currentSentence.phonetic,
       english: currentSentence.english,
-      userInput,
+      userInput: recordUserInput,
       isCorrect,
       accuracy: currentAccuracy
     };
@@ -153,7 +159,8 @@ Page({
       correctCount: newCorrectCount,
       accuracy: 100,
       currentUserInput: '',
-      currentSentenceHadError: false
+      currentSentenceHadError: false,
+      currentWrongInputSnapshot: ''
     });
 
     const input = this.selectComponent('#sentenceInput');

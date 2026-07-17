@@ -7,8 +7,8 @@ function findCourse(courseId, source) {
     return storage.getCustomCourse(courseId);
   }
   if (source === 'wrongReview') {
-    // 错题重练模式 - 从临时存储获取
     const wrongQuestions = storage.getTempWrongQuestions();
+    storage.clearTempWrongQuestions();
     if (Array.isArray(wrongQuestions) && wrongQuestions.length > 0) {
       return {
         course_id: `wrong_review_${Date.now()}`,
@@ -105,7 +105,6 @@ Page({
     const errorChars = Math.round(sentenceLength * (1 - currentAccuracy / 100));
     const isCorrect = currentAccuracy === 100;
 
-    // 记录答题记录
     const record = {
       index: this.data.currentIndex,
       chinese: currentSentence.chinese,
@@ -116,26 +115,22 @@ Page({
       accuracy: currentAccuracy
     };
 
+    if (nextIndex >= this.data.course.sentences.length) {
+      this.finishPractice(combo, bestCombo, record, isCorrect, sentenceLength, errorChars);
+      return;
+    }
+
     const answerRecords = [...this.data.answerRecords, record];
     const wrongQuestions = isCorrect
       ? this.data.wrongQuestions
       : [...this.data.wrongQuestions, currentSentence];
+    const newCorrectCount = isCorrect ? this.data.correctCount + 1 : this.data.correctCount;
 
     this.setData({
       totalChars: this.data.totalChars + sentenceLength,
       totalErrorChars: this.data.totalErrorChars + errorChars,
       answerRecords,
-      wrongQuestions
-    });
-
-    if (nextIndex >= this.data.course.sentences.length) {
-      this.finishPractice(combo, bestCombo, answerRecords, wrongQuestions);
-      return;
-    }
-
-    const newCorrectCount = isCorrect ? this.data.correctCount + 1 : this.data.correctCount;
-
-    this.setData({
+      wrongQuestions,
       currentIndex: nextIndex,
       currentSentence: this.data.course.sentences[nextIndex],
       progressText: `${nextIndex + 1}/${this.data.course.sentences.length}`,
@@ -152,24 +147,18 @@ Page({
     }
   },
 
-  finishPractice(combo, bestCombo, answerRecords, wrongQuestions) {
+  finishPractice(combo, bestCombo, lastRecord, lastIsCorrect, lastSentenceLength, lastErrorChars) {
     const total = this.data.course.sentences.length;
-    const lastIsCorrect = this.data.accuracy === 100;
     const correctCount = lastIsCorrect ? this.data.correctCount + 1 : this.data.correctCount;
     const wrongCount = total - correctCount;
     const isAllCorrect = wrongCount === 0;
     const duration = Math.max(1, Math.round((Date.now() - this.data.startedAt) / 1000));
 
-    const currentSentence = this.data.currentSentence;
-    const sentenceLength = currentSentence.english.length;
-    const currentAccuracy = this.data.accuracy;
-    const errorChars = Math.round(sentenceLength * (1 - currentAccuracy / 100));
+    const totalChars = this.data.totalChars + lastSentenceLength;
+    const totalErrorChars = this.data.totalErrorChars + lastErrorChars;
 
-    const totalChars = this.data.totalChars + sentenceLength;
-    const totalErrorChars = this.data.totalErrorChars + errorChars;
-
-    const finalAccuracy = totalChars > 0 
-      ? Math.round(((totalChars - totalErrorChars) / totalChars) * 100) 
+    const finalAccuracy = totalChars > 0
+      ? Math.round(((totalChars - totalErrorChars) / totalChars) * 100)
       : 100;
 
     storage.addPracticeRecord({
@@ -184,21 +173,11 @@ Page({
       practice_time: new Date().toISOString()
     });
 
-    // 处理最后一题的记录
-    const lastRecord = {
-      index: this.data.currentIndex,
-      chinese: currentSentence.chinese,
-      phonetic: currentSentence.phonetic,
-      english: currentSentence.english,
-      userInput: this.data.currentUserInput,
-      isCorrect: currentAccuracy === 100,
-      accuracy: currentAccuracy
-    };
-
-    const finalAnswerRecords = [...answerRecords, lastRecord];
-    const finalWrongQuestions = currentAccuracy === 100
-      ? wrongQuestions
-      : [...wrongQuestions, currentSentence];
+    const currentSentence = this.data.currentSentence;
+    const finalAnswerRecords = [...this.data.answerRecords, lastRecord];
+    const finalWrongQuestions = lastIsCorrect
+      ? this.data.wrongQuestions
+      : [...this.data.wrongQuestions, currentSentence];
 
     this.setData({
       combo,
@@ -206,8 +185,8 @@ Page({
       correctCount,
       totalChars,
       totalErrorChars,
-      wrongCount: total - correctCount,
-      isAllCorrect: (total - correctCount) === 0,
+      wrongCount,
+      isAllCorrect,
       answerRecords: finalAnswerRecords,
       wrongQuestions: finalWrongQuestions,
       formattedAccuracy: format.formatAccuracy(finalAccuracy),

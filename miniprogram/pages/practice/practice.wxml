@@ -41,18 +41,20 @@
 
     <view class="wrong-questions-section" wx:if="{{!isAllCorrect && wrongQuestions.length > 0}}">
       <view class="section-title">错题回顾</view>
-      <view class="wrong-question-item" wx:for="{{answerRecords}}" wx:if="{{!item.isCorrect}}" wx:key="index">
-        <view class="wrong-question-chinese">{{item.chinese}}</view>
-        <view class="wrong-question-phonetic">{{item.phonetic}}</view>
-        <view class="wrong-question-answer">
-          <view class="answer-label">你的输入</view>
-          <view class="answer-user">{{item.userInput || '(未输入)'}}</view>
+      <block wx:for="{{answerRecords}}" wx:key="index">
+        <view class="wrong-question-item" wx:if="{{!item.isCorrect}}">
+          <view class="wrong-question-chinese">{{item.chinese}}</view>
+          <view class="wrong-question-phonetic">{{item.phonetic}}</view>
+          <view class="wrong-question-answer">
+            <view class="answer-label">你的输入</view>
+            <view class="answer-user">{{item.userInput || '(未输入)'}}</view>
+          </view>
+          <view class="wrong-question-answer">
+            <view class="answer-label">正确答案</view>
+            <view class="answer-correct">{{item.english}}</view>
+          </view>
         </view>
-        <view class="wrong-question-answer">
-          <view class="answer-label">正确答案</view>
-          <view class="answer-correct">{{item.english}}</view>
-        </view>
-      </view>
+      </block>
     </view>
 
     <button class="primary-button" bindtap="restart">再练一次</button>

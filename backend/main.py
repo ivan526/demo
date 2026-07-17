@@ -212,11 +212,35 @@ def init_db():
         duration INTEGER NOT NULL CHECK (duration >= 0),
         practice_date DATE NOT NULL,
         practice_time TIMESTAMP NOT NULL,
+        original_record_id TEXT,
         created_at TIMESTAMP NOT NULL,
         updated_at TIMESTAMP NOT NULL,
         FOREIGN KEY (openid) REFERENCES users(openid) ON DELETE CASCADE,
         CHECK (correct_count <= total_sentences),
         CHECK (max_combo <= total_sentences)
+    )
+    ''')
+
+    # 添加original_record_id列（兼容旧版本）
+    cursor.execute("PRAGMA table_info(user_practice_records)")
+    columns = [row["name"] for row in cursor.fetchall()]
+    if "original_record_id" not in columns:
+        cursor.execute("ALTER TABLE user_practice_records ADD COLUMN original_record_id TEXT")
+
+    # 新增用户答题详情表
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS user_practice_answers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        record_id TEXT NOT NULL,
+        question_id TEXT NOT NULL,
+        english TEXT NOT NULL,
+        chinese TEXT NOT NULL,
+        user_answer TEXT NOT NULL,
+        correct_answer TEXT NOT NULL,
+        is_correct BOOLEAN NOT NULL,
+        created_at TIMESTAMP NOT NULL,
+        FOREIGN KEY (record_id) REFERENCES user_practice_records(id) ON DELETE CASCADE,
+        UNIQUE(record_id, question_id)
     )
     ''')
 
@@ -314,6 +338,15 @@ class WxLoginRequest(BaseModel):
     avatar: Optional[str] = None
 
 
+class Answer(BaseModel):
+    questionId: str = Field(min_length=1, max_length=128)
+    english: str = Field(min_length=1, max_length=2000)
+    chinese: str = Field(min_length=1, max_length=2000)
+    userAnswer: str = Field(min_length=0, max_length=2000)
+    correctAnswer: str = Field(min_length=1, max_length=2000)
+    isCorrect: bool
+
+
 class PracticeRecordRequest(BaseModel):
     record_id: str = Field(min_length=1, max_length=128)
     course_id: str = Field(min_length=1, max_length=128)
@@ -324,6 +357,7 @@ class PracticeRecordRequest(BaseModel):
     accuracy: float = Field(ge=0, le=100)
     duration: int = Field(ge=0)
     practice_time: str
+    answers: List[Answer] = Field(default_factory=list)
 
     @model_validator(mode='after')
     def check_cross_fields(self):
@@ -333,6 +367,9 @@ class PracticeRecordRequest(BaseModel):
             raise ValueError('max_combo cannot exceed total_sentences')
         if self.duration < 0:
             raise ValueError('duration must be non-negative')
+        # 校验答案数量是否匹配
+        if self.answers and len(self.answers) != self.total_sentences:
+            raise ValueError('answers length must match total_sentences')
         return self
 
 
@@ -618,6 +655,18 @@ async def upload_practice_record(req: PracticeRecordRequest, current_user: dict 
             client_dt.strftime("%Y-%m-%dT%H:%M:%SZ"), now, now,
         ))
 
+        # 保存每题答题详情
+        if req.answers:
+            for answer in req.answers:
+                conn.execute('''
+                INSERT OR IGNORE INTO user_practice_answers (
+                    record_id, question_id, english, chinese, user_answer, correct_answer, is_correct, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    req.record_id, answer.questionId, answer.english, answer.chinese,
+                    answer.userAnswer, answer.correctAnswer, answer.isCorrect, now
+                ))
+
         total_days, continuous, last_date = compute_streak(openid, conn)
         total_row = conn.execute('''
             SELECT
@@ -729,6 +778,18 @@ async def sync_data(req: SyncRequest, current_user: dict = Depends(get_current_u
                 client_dt.strftime("%Y-%m-%dT%H:%M:%SZ"), now, now,
             ))
 
+            # 同步保存每题答题详情
+            if hasattr(record, 'answers') and record.answers:
+                for answer in record.answers:
+                    conn.execute('''
+                    INSERT OR IGNORE INTO user_practice_answers (
+                        record_id, question_id, english, chinese, user_answer, correct_answer, is_correct, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (
+                        record.record_id, answer.questionId, answer.english, answer.chinese,
+                        answer.userAnswer, answer.correctAnswer, answer.isCorrect, now
+                    ))
+
         for course in req.user_courses:
             existing = conn.execute(
                 "SELECT id FROM user_courses WHERE id = ? AND openid = ?",
@@ -816,6 +877,136 @@ async def sync_data(req: SyncRequest, current_user: dict = Depends(get_current_u
         "new_records": new_records,
         "new_courses": new_courses,
     })
+
+
+@app.get("/api/practice/sessions/{session_id}/result")
+async def get_practice_result(session_id: str, current_user: dict = Depends(get_current_user)):
+    openid = current_user["openid"]
+    conn = get_db_connection()
+    try:
+        # 校验练习会话是否存在且属于当前用户
+        record = conn.execute('''
+            SELECT * FROM user_practice_records WHERE id = ? AND openid = ?
+        ''', (session_id, openid)).fetchone()
+        if not record:
+            raise HTTPException(status_code=404, detail="练习会话不存在")
+        
+        # 获取错题列表
+        mistakes = conn.execute('''
+            SELECT question_id, chinese, user_answer, correct_answer FROM user_practice_answers
+            WHERE record_id = ? AND is_correct = 0
+            ORDER BY id
+        ''', (session_id,)).fetchall()
+
+        return envelope(0, "success", {
+            "sessionId": record["id"],
+            "totalCount": record["total_sentences"],
+            "correctCount": record["correct_count"],
+            "mistakeCount": record["total_sentences"] - record["correct_count"],
+            "accuracy": round(record["accuracy"], 1),
+            "mistakes": [
+                {
+                    "questionId": m["question_id"],
+                    "chinese": m["chinese"],
+                    "userAnswer": m["user_answer"],
+                    "correctAnswer": m["correct_answer"]
+                } for m in mistakes
+            ]
+        })
+    finally:
+        conn.close()
+
+
+@app.post("/api/practice/sessions/{session_id}/retry-mistakes")
+async def create_retry_session(session_id: str, current_user: dict = Depends(get_current_user)):
+    openid = current_user["openid"]
+    conn = get_db_connection()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+
+        # 校验原练习会话是否存在且属于当前用户
+        original_record = conn.execute('''
+            SELECT * FROM user_practice_records WHERE id = ? AND openid = ?
+        ''', (session_id, openid)).fetchone()
+        if not original_record:
+            raise HTTPException(status_code=404, detail="练习会话不存在")
+        
+        # 幂等性检查：是否已经创建过重试会话
+        existing_retry = conn.execute('''
+            SELECT id FROM user_practice_records WHERE original_record_id = ? AND openid = ?
+            LIMIT 1
+        ''', (session_id, openid)).fetchone()
+        if existing_retry:
+            retry_session_id = existing_retry["id"]
+        else:
+            # 获取错题列表
+            mistakes = conn.execute('''
+                SELECT question_id, english, chinese, correct_answer FROM user_practice_answers
+                WHERE record_id = ? AND is_correct = 0
+                ORDER BY id
+            ''', (session_id,)).fetchall()
+
+            if not mistakes:
+                raise HTTPException(status_code=400, detail="该练习没有错题，无需重练")
+            
+            # 创建新的重试会话
+            retry_session_id = f"retry_{session_id}_{uuid.uuid4().hex[:8]}"
+            now = utcnow_iso()
+            practice_date = shanghai_today()
+            
+            # 插入练习记录
+            conn.execute('''
+            INSERT INTO user_practice_records (
+                id, openid, course_id, course_name, total_sentences, correct_count,
+                max_combo, accuracy, duration, practice_date, practice_time, 
+                original_record_id, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                retry_session_id, openid, original_record["course_id"], 
+                f"[错题重练] {original_record['course_name']}", len(mistakes),
+                0, 0, 0.0, 0, practice_date.isoformat(), now,
+                session_id, now, now
+            ))
+
+            # 插入答题详情（预填正确答案，用户答题后会更新）
+            for mistake in mistakes:
+                conn.execute('''
+                INSERT OR IGNORE INTO user_practice_answers (
+                    record_id, question_id, english, chinese, user_answer, correct_answer, is_correct, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    retry_session_id, mistake["question_id"], mistake["english"],
+                    mistake["chinese"], "", mistake["correct_answer"], False, now
+                ))
+
+            conn.commit()
+        
+        # 返回重试会话信息
+        questions = conn.execute('''
+            SELECT english, chinese FROM user_practice_answers
+            WHERE record_id = ? ORDER BY id
+        ''', (retry_session_id,)).fetchall()
+
+        return envelope(0, "success", {
+            "sessionId": retry_session_id,
+            "questionCount": len(questions),
+            "questions": [
+                {
+                    "english": q["english"],
+                    "chinese": q["chinese"],
+                    "audio_url": ""
+                } for q in questions
+            ]
+        })
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception:
+        conn.rollback()
+        logger.exception("failed to create retry session for %s", openid)
+        raise HTTPException(status_code=500, detail="创建重练会话失败")
+    finally:
+        conn.close()
 
 
 @app.post("/api/ai/generate-course")

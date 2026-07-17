@@ -88,9 +88,12 @@ Page({
   },
 
   onSentenceInput(event) {
+    const result = (event && event.detail && event.detail.result) || {};
+    const value = (event && event.detail && event.detail.value) || '';
+    const accuracy = typeof result.accuracy === 'number' ? result.accuracy : 0;
     this.setData({
-      accuracy: event.detail.result.accuracy,
-      currentUserInput: event.detail.value
+      accuracy,
+      currentUserInput: value
     });
   },
 
@@ -99,9 +102,10 @@ Page({
     const combo = this.data.combo + 1;
     const bestCombo = Math.max(this.data.bestCombo, combo);
     const currentSentence = this.data.currentSentence;
+    const result = (event && event.detail && event.detail.result) || { accuracy: 0 };
     const userInput = event && event.detail ? event.detail.value : this.data.currentUserInput;
     const sentenceLength = currentSentence.english.length;
-    const currentAccuracy = this.data.accuracy;
+    const currentAccuracy = typeof result.accuracy === 'number' ? result.accuracy : 0;
     const errorChars = Math.round(sentenceLength * (1 - currentAccuracy / 100));
     const isCorrect = currentAccuracy === 100;
 

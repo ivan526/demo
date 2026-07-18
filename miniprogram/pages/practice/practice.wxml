@@ -26,7 +26,39 @@
   <view class="result section" wx:if="{{completed}}">
     <view class="section-title">本次练习完成</view>
     <view class="muted">{{resultText}}</view>
+
+    <view class="result-stats-grid">
+      <stat-card label="总题数" value="{{totalSentences}}" />
+      <stat-card label="正确数" value="{{correctCount}}" />
+      <stat-card label="错误数" value="{{wrongCount}}" />
+      <stat-card label="正确率" value="{{formattedAccuracy}}" />
+    </view>
+
+    <view class="all-correct-state" wx:if="{{isAllCorrect}}">
+      <view class="success-icon">✓</view>
+      <view class="success-text">本次练习全部正确</view>
+    </view>
+
+    <view class="wrong-questions-section" wx:if="{{!isAllCorrect && wrongQuestions.length > 0}}">
+      <view class="section-title">错题回顾</view>
+      <block wx:for="{{answerRecords}}" wx:key="index">
+        <view class="wrong-question-item" wx:if="{{!item.isCorrect}}">
+          <view class="wrong-question-chinese">{{item.chinese}}</view>
+          <view class="wrong-question-phonetic">{{item.phonetic}}</view>
+          <view class="wrong-question-answer">
+            <view class="answer-label">你的输入</view>
+            <view class="answer-user">{{item.userInput || '(未输入)'}}</view>
+          </view>
+          <view class="wrong-question-answer">
+            <view class="answer-label">正确答案</view>
+            <view class="answer-correct">{{item.english}}</view>
+          </view>
+        </view>
+      </block>
+    </view>
+
     <button class="primary-button" bindtap="restart">再练一次</button>
+    <button class="wrong-review-button" wx:if="{{!isAllCorrect && wrongQuestions.length > 0}}" bindtap="reviewWrongQuestions">重新练习错题</button>
     <button class="secondary-button" bindtap="backToCourses">返回课程</button>
   </view>
 </view>

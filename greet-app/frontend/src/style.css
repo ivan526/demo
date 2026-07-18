@@ -23,7 +23,8 @@ body {
     border-radius: 16px;
     padding: 40px 30px;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-    max-width: 420px;
+    width: 380px;
+    max-width: 100%;
     margin: 0 auto;
     animation: slideUp 0.4s ease-out;
 }
@@ -42,8 +43,8 @@ body {
 .title {
     text-align: center;
     color: #333;
-    font-size: 28px;
-    font-weight: 600;
+    font-size: 24px;
+    font-weight: 700;
     margin-bottom: 8px;
 }
 
@@ -59,13 +60,17 @@ body {
 }
 
 #name-input {
-    width: 100%;
-    padding: 14px 16px;
+    width: 320px;
+    max-width: 100%;
+    height: 44px;
+    padding: 0 16px;
     font-size: 16px;
-    border: 2px solid #e0e0e0;
-    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
     outline: none;
     transition: border-color 0.3s, box-shadow 0.3s;
+    display: block;
+    margin: 0 auto;
 }
 
 #name-input:focus {
@@ -82,21 +87,25 @@ body {
     font-size: 12px;
     margin-top: 6px;
     min-height: 16px;
+    text-align: center;
 }
 
 .btn {
-    width: 100%;
-    padding: 14px 24px;
+    width: 320px;
+    max-width: 100%;
+    height: 44px;
     font-size: 16px;
     font-weight: 500;
     color: white;
     background: #2563eb;
     border: none;
-    border-radius: 10px;
+    border-radius: 8px;
     cursor: pointer;
     transition: background-color 0.2s, transform 0.2s, box-shadow 0.2s;
     position: relative;
     overflow: hidden;
+    display: block;
+    margin: 0 auto;
 }
 
 .btn:hover {
@@ -126,7 +135,7 @@ body {
 .result-section {
     margin-top: 24px;
     padding-top: 24px;
-    border-top: 1px solid #e0e0e0;
+    border-top: 1px solid #e5e7eb;
     animation: fadeIn 0.3s ease-out;
 }
 
@@ -144,14 +153,16 @@ body {
 }
 
 .result-content {
-    background: linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%);
-    border-radius: 12px;
-    padding: 20px;
+    background: #f3f4f6;
+    border-radius: 8px;
+    padding: 16px;
 }
 
 .result-content.error {
     background: #f44336;
     color: white;
+    border-radius: 8px;
+    padding: 12px;
 }
 
 .greeting-text {
@@ -201,7 +212,13 @@ body {
 
 @media (max-width: 480px) {
     .card {
+        width: 100%;
         padding: 30px 20px;
+    }
+
+    #name-input,
+    .btn {
+        width: 100%;
     }
 
     .title {

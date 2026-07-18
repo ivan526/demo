@@ -14,7 +14,9 @@
     var resultContent = resultSection.querySelector('.result-content');
 
     var inputErrorTimeout = null;
+    var resultErrorTimeout = null;
     var originalBtnText = '获取问候';
+    var REQUEST_TIMEOUT_MS = 5000;
 
     function validateName(name) {
         if (!name || typeof name !== 'string') {
@@ -31,7 +33,7 @@
             return { valid: false, message: '姓名最多支持20个字符' };
         }
 
-        // 特殊字符校验黑名单（32个特殊字符，与PRD完全一致）
+        // 特殊字符校验黑名单（30个特殊字符，与PRD完全一致）
         var specialChars = /[`~!@#$%^&*()_+{}\[\]|\\:;"'<>,.?\/]/;
         if (specialChars.test(trimmed)) {
             return { valid: false, message: '姓名不能包含特殊字符，请重新输入' };
@@ -44,7 +46,6 @@
         inputError.textContent = message;
         nameInput.classList.add('error');
 
-        // 清除旧定时器
         if (inputErrorTimeout) {
             clearTimeout(inputErrorTimeout);
         }
@@ -64,7 +65,15 @@
         }
     }
 
+    function clearResultErrorTimeout() {
+        if (resultErrorTimeout) {
+            clearTimeout(resultErrorTimeout);
+            resultErrorTimeout = null;
+        }
+    }
+
     function showResultError(message) {
+        clearResultErrorTimeout();
         resultContent.className = 'result-content error';
         greetingDisplay.textContent = message;
         serverTimeDisplay.textContent = '';
@@ -74,7 +83,7 @@
         resultSection.classList.remove('hidden');
 
         // 3秒后自动隐藏错误
-        setTimeout(function() {
+        resultErrorTimeout = setTimeout(function() {
             hideResult();
         }, 3000);
     }
@@ -92,6 +101,7 @@
     }
 
     function showResult(data) {
+        clearResultErrorTimeout();
         resultContent.className = 'result-content';
         greetingDisplay.textContent = data.greeting;
         serverTimeDisplay.textContent = data.server_time;
@@ -105,7 +115,22 @@
     }
 
     function hideResult() {
+        clearResultErrorTimeout();
         resultSection.classList.add('hidden');
+    }
+
+    function isNetworkError(error) {
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+            return true;
+        }
+        if (error && error instanceof TypeError) {
+            var msg = (error.message || '').toLowerCase();
+            return /fetch|network|load failed|failed to fetch/i.test(error.message || '') ||
+                   msg.indexOf('network') !== -1 ||
+                   msg.indexOf('fetch') !== -1 ||
+                   msg.indexOf('load failed') !== -1;
+        }
+        return false;
     }
 
     async function submitForm() {
@@ -121,14 +146,28 @@
 
         showLoading();
 
+        var controller = null;
+        var timeoutId = null;
+        if (typeof AbortController !== 'undefined') {
+            controller = new AbortController();
+            timeoutId = setTimeout(function() {
+                controller.abort();
+            }, REQUEST_TIMEOUT_MS);
+        }
+
         try {
-            var response = await fetch('/api/greet', {
+            var fetchOptions = {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ name: validation.name })
-            });
+            };
+            if (controller) {
+                fetchOptions.signal = controller.signal;
+            }
+
+            var response = await fetch('/api/greet', fetchOptions);
 
             var result = await response.json();
 
@@ -138,12 +177,17 @@
                 showResultError(result.msg || '服务异常，请稍后重试');
             }
         } catch (error) {
-            if (error.name === 'NetworkError' || error.message.includes('network')) {
+            if (error && error.name === 'AbortError') {
+                showResultError('网络异常，请稍后重试');
+            } else if (isNetworkError(error)) {
                 showResultError('网络异常，请稍后重试');
             } else {
                 showResultError('服务异常，请稍后重试');
             }
         } finally {
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
             hideLoading();
         }
     }
@@ -157,13 +201,6 @@
         nameInput.addEventListener('input', function() {
             clearInputError();
             hideResult();
-        });
-
-        nameInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                submitForm();
-            }
         });
 
         nameInput.focus();

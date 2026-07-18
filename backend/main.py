@@ -49,7 +49,7 @@ DOUBAO_API_KEY = os.getenv("DOUBAO_API_KEY", "")
 DOUBAO_API_ENDPOINT = "https://ark.cn-beijing.volces.com/api/v3/chat/completions"
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, "english_practice.db")
+DB_PATH = os.environ.get("TEST_DB_PATH") or os.path.join(BASE_DIR, "english_practice.db")
 
 SHANGHAI_TZ = timezone(timedelta(hours=8))
 UTC_TZ = timezone.utc
@@ -160,6 +160,7 @@ def init_db():
         course_id INTEGER NOT NULL,
         english TEXT NOT NULL,
         chinese TEXT NOT NULL,
+        phonetic TEXT NOT NULL DEFAULT '',
         audio_url TEXT,
         sort_order INTEGER NOT NULL,
         created_at TIMESTAMP NOT NULL,
@@ -167,6 +168,11 @@ def init_db():
         FOREIGN KEY (course_id) REFERENCES builtin_courses(id) ON DELETE CASCADE
     )
     ''')
+
+    cursor.execute("PRAGMA table_info(builtin_course_sentences)")
+    bcs_columns = [row["name"] for row in cursor.fetchall()]
+    if "phonetic" not in bcs_columns:
+        cursor.execute("ALTER TABLE builtin_course_sentences ADD COLUMN phonetic TEXT NOT NULL DEFAULT ''")
 
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS user_courses (
@@ -191,6 +197,7 @@ def init_db():
         course_id TEXT NOT NULL,
         english TEXT NOT NULL,
         chinese TEXT NOT NULL,
+        phonetic TEXT NOT NULL DEFAULT '',
         audio_url TEXT,
         sort_order INTEGER NOT NULL,
         created_at TIMESTAMP NOT NULL,
@@ -198,6 +205,11 @@ def init_db():
         FOREIGN KEY (course_id) REFERENCES user_courses(id) ON DELETE CASCADE
     )
     ''')
+
+    cursor.execute("PRAGMA table_info(user_course_sentences)")
+    ucs_columns = [row["name"] for row in cursor.fetchall()]
+    if "phonetic" not in ucs_columns:
+        cursor.execute("ALTER TABLE user_course_sentences ADD COLUMN phonetic TEXT NOT NULL DEFAULT ''")
 
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS user_practice_records (
@@ -212,11 +224,53 @@ def init_db():
         duration INTEGER NOT NULL CHECK (duration >= 0),
         practice_date DATE NOT NULL,
         practice_time TIMESTAMP NOT NULL,
+        original_record_id TEXT,
         created_at TIMESTAMP NOT NULL,
         updated_at TIMESTAMP NOT NULL,
         FOREIGN KEY (openid) REFERENCES users(openid) ON DELETE CASCADE,
         CHECK (correct_count <= total_sentences),
         CHECK (max_combo <= total_sentences)
+    )
+    ''')
+
+    # 添加original_record_id列（兼容旧版本）
+    cursor.execute("PRAGMA table_info(user_practice_records)")
+    columns = [row["name"] for row in cursor.fetchall()]
+    if "original_record_id" not in columns:
+        cursor.execute("ALTER TABLE user_practice_records ADD COLUMN original_record_id TEXT")
+
+    # 新增用户答题详情表
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS user_practice_answers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        record_id TEXT NOT NULL,
+        question_id TEXT NOT NULL,
+        english TEXT NOT NULL,
+        chinese TEXT NOT NULL,
+        phonetic TEXT NOT NULL DEFAULT '',
+        user_answer TEXT NOT NULL,
+        correct_answer TEXT NOT NULL,
+        is_correct BOOLEAN NOT NULL,
+        created_at TIMESTAMP NOT NULL,
+        FOREIGN KEY (record_id) REFERENCES user_practice_records(id) ON DELETE CASCADE,
+        UNIQUE(record_id, question_id)
+    )
+    ''')
+
+    # 为旧表添加 phonetic 字段
+    cursor.execute("PRAGMA table_info(user_practice_answers)")
+    ans_columns = [row["name"] for row in cursor.fetchall()]
+    if "phonetic" not in ans_columns:
+        cursor.execute("ALTER TABLE user_practice_answers ADD COLUMN phonetic TEXT NOT NULL DEFAULT ''")
+
+    # 错题重练映射表：记录重试会话与原会话的关系
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS practice_session_retries (
+        retry_session_id TEXT PRIMARY KEY,
+        original_session_id TEXT NOT NULL,
+        openid TEXT NOT NULL,
+        created_at TIMESTAMP NOT NULL,
+        UNIQUE(original_session_id, openid)
     )
     ''')
 
@@ -297,9 +351,9 @@ def init_db():
             course_id = cursor.lastrowid
             for i, (english, chinese) in enumerate(course["sentences"]):
                 cursor.execute('''
-                INSERT INTO builtin_course_sentences (course_id, english, chinese, sort_order, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?)
-                ''', (course_id, english, chinese, i + 1, now, now))
+                INSERT INTO builtin_course_sentences (course_id, english, chinese, phonetic, sort_order, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', (course_id, english, chinese, "", i + 1, now, now))
 
     conn.commit()
     conn.close()
@@ -314,6 +368,16 @@ class WxLoginRequest(BaseModel):
     avatar: Optional[str] = None
 
 
+class Answer(BaseModel):
+    questionId: str = Field(min_length=1, max_length=128)
+    english: str = Field(min_length=1, max_length=2000)
+    chinese: str = Field(min_length=1, max_length=2000)
+    phonetic: Optional[str] = Field(default="", max_length=500)
+    userAnswer: str = Field(min_length=0, max_length=2000)
+    correctAnswer: str = Field(min_length=1, max_length=2000)
+    isCorrect: bool
+
+
 class PracticeRecordRequest(BaseModel):
     record_id: str = Field(min_length=1, max_length=128)
     course_id: str = Field(min_length=1, max_length=128)
@@ -324,6 +388,7 @@ class PracticeRecordRequest(BaseModel):
     accuracy: float = Field(ge=0, le=100)
     duration: int = Field(ge=0)
     practice_time: str
+    answers: List[Answer] = Field(default_factory=list)
 
     @model_validator(mode='after')
     def check_cross_fields(self):
@@ -333,12 +398,16 @@ class PracticeRecordRequest(BaseModel):
             raise ValueError('max_combo cannot exceed total_sentences')
         if self.duration < 0:
             raise ValueError('duration must be non-negative')
+        # 校验答案数量是否匹配
+        if self.answers and len(self.answers) != self.total_sentences:
+            raise ValueError('answers length must match total_sentences')
         return self
 
 
 class SyncCourseSentence(BaseModel):
     english: str = Field(min_length=1, max_length=2000)
     chinese: str = Field(min_length=1, max_length=2000)
+    phonetic: Optional[str] = Field(default="", max_length=500)
     audio_url: Optional[str] = ""
 
 
@@ -538,6 +607,7 @@ async def wx_login(req: WxLoginRequest):
                 params.append(openid)
                 conn.execute(f"UPDATE users SET {', '.join(fields)} WHERE openid = ?", params)
                 conn.commit()
+                user = conn.execute("SELECT * FROM users WHERE openid = ?", (openid,)).fetchone()
     finally:
         conn.close()
 
@@ -578,7 +648,7 @@ async def get_builtin_course_detail(course_id: int, current_user: dict = Depends
         if not course:
             raise HTTPException(status_code=404, detail="课程不存在")
         sentences = conn.execute(
-            "SELECT id, english, chinese, audio_url FROM builtin_course_sentences WHERE course_id = ? ORDER BY sort_order",
+            "SELECT id, english, chinese, phonetic, audio_url FROM builtin_course_sentences WHERE course_id = ? ORDER BY sort_order",
             (course_id,),
         ).fetchall()
     finally:
@@ -606,17 +676,40 @@ async def upload_practice_record(req: PracticeRecordRequest, current_user: dict 
 
         now = utcnow_iso()
         conn.execute("BEGIN IMMEDIATE")
+
+        # 检查是否为重试会话：从映射表获取 original_record_id
+        retry_mapping = conn.execute(
+            "SELECT original_session_id FROM practice_session_retries WHERE retry_session_id = ? AND openid = ?",
+            (req.record_id, openid),
+        ).fetchone()
+        original_record_id = retry_mapping["original_session_id"] if retry_mapping else None
+
         conn.execute('''
         INSERT INTO user_practice_records (
             id, openid, course_id, course_name, total_sentences, correct_count,
-            max_combo, accuracy, duration, practice_date, practice_time, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            max_combo, accuracy, duration, practice_date, practice_time,
+            original_record_id, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             req.record_id, openid, req.course_id, req.course_name,
             req.total_sentences, req.correct_count, req.max_combo,
             server_accuracy, req.duration, practice_date.isoformat(),
-            client_dt.strftime("%Y-%m-%dT%H:%M:%SZ"), now, now,
+            client_dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            original_record_id, now, now,
         ))
+
+        # 保存每题答题详情
+        if req.answers:
+            for answer in req.answers:
+                conn.execute('''
+                INSERT OR IGNORE INTO user_practice_answers (
+                    record_id, question_id, english, chinese, phonetic, user_answer, correct_answer, is_correct, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    req.record_id, answer.questionId, answer.english, answer.chinese,
+                    answer.phonetic or "",
+                    answer.userAnswer, answer.correctAnswer, answer.isCorrect, now
+                ))
 
         total_days, continuous, last_date = compute_streak(openid, conn)
         total_row = conn.execute('''
@@ -717,17 +810,39 @@ async def sync_data(req: SyncRequest, current_user: dict = Depends(get_current_u
                 continue
 
             server_accuracy = (record.correct_count / record.total_sentences) * 100 if record.total_sentences > 0 else 0
+
+            retry_mapping = conn.execute(
+                "SELECT original_session_id FROM practice_session_retries WHERE retry_session_id = ? AND openid = ?",
+                (record.record_id, openid),
+            ).fetchone()
+            original_record_id = retry_mapping["original_session_id"] if retry_mapping else None
+
             conn.execute('''
             INSERT INTO user_practice_records (
                 id, openid, course_id, course_name, total_sentences, correct_count,
-                max_combo, accuracy, duration, practice_date, practice_time, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                max_combo, accuracy, duration, practice_date, practice_time,
+                original_record_id, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 record.record_id, openid, record.course_id, record.course_name,
                 record.total_sentences, record.correct_count, record.max_combo,
                 server_accuracy, record.duration, practice_date_shanghai.isoformat(),
-                client_dt.strftime("%Y-%m-%dT%H:%M:%SZ"), now, now,
+                client_dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                original_record_id, now, now,
             ))
+
+            # 同步保存每题答题详情
+            if hasattr(record, 'answers') and record.answers:
+                for answer in record.answers:
+                    conn.execute('''
+                    INSERT OR IGNORE INTO user_practice_answers (
+                        record_id, question_id, english, chinese, phonetic, user_answer, correct_answer, is_correct, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (
+                        record.record_id, answer.questionId, answer.english, answer.chinese,
+                        getattr(answer, 'phonetic', "") or "",
+                        answer.userAnswer, answer.correctAnswer, answer.isCorrect, now
+                    ))
 
         for course in req.user_courses:
             existing = conn.execute(
@@ -749,10 +864,11 @@ async def sync_data(req: SyncRequest, current_user: dict = Depends(get_current_u
             for i, sentence in enumerate(course.sentences):
                 conn.execute('''
                 INSERT INTO user_course_sentences (
-                    course_id, english, chinese, audio_url, sort_order, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    course_id, english, chinese, phonetic, audio_url, sort_order, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     course.id, sentence.english, sentence.chinese,
+                    getattr(sentence, 'phonetic', "") or "",
                     sentence.audio_url or "", i + 1, now, now,
                 ))
 
@@ -776,7 +892,7 @@ async def sync_data(req: SyncRequest, current_user: dict = Depends(get_current_u
             for c in courses:
                 cd = dict(c)
                 sens = conn.execute('''
-                    SELECT english, chinese, audio_url FROM user_course_sentences
+                    SELECT english, chinese, phonetic, audio_url FROM user_course_sentences
                     WHERE course_id = ? ORDER BY sort_order
                 ''', (c["id"],)).fetchall()
                 cd["sentences"] = [dict(s) for s in sens]
@@ -816,6 +932,113 @@ async def sync_data(req: SyncRequest, current_user: dict = Depends(get_current_u
         "new_records": new_records,
         "new_courses": new_courses,
     })
+
+
+@app.get("/api/practice/sessions/{session_id}/result")
+async def get_practice_result(session_id: str, current_user: dict = Depends(get_current_user)):
+    openid = current_user["openid"]
+    conn = get_db_connection()
+    try:
+        record = conn.execute('''
+            SELECT * FROM user_practice_records WHERE id = ? AND openid = ?
+        ''', (session_id, openid)).fetchone()
+        if not record:
+            raise HTTPException(status_code=404, detail="练习会话不存在")
+
+        mistakes = conn.execute('''
+            SELECT question_id, english, chinese, phonetic, user_answer, correct_answer
+            FROM user_practice_answers
+            WHERE record_id = ? AND is_correct = 0
+            ORDER BY id
+        ''', (session_id,)).fetchall()
+
+        return envelope(0, "success", {
+            "sessionId": record["id"],
+            "totalCount": record["total_sentences"],
+            "correctCount": record["correct_count"],
+            "mistakeCount": record["total_sentences"] - record["correct_count"],
+            "accuracy": round(record["accuracy"], 1),
+            "mistakes": [
+                {
+                    "questionId": m["question_id"],
+                    "english": m["english"],
+                    "chinese": m["chinese"],
+                    "phonetic": m["phonetic"] or "",
+                    "userAnswer": m["user_answer"],
+                    "correctAnswer": m["correct_answer"],
+                } for m in mistakes
+            ]
+        })
+    finally:
+        conn.close()
+
+
+@app.post("/api/practice/sessions/{session_id}/retry-mistakes")
+async def create_retry_session(session_id: str, current_user: dict = Depends(get_current_user)):
+    openid = current_user["openid"]
+    conn = get_db_connection()
+    try:
+        # 校验原练习会话是否存在且属于当前用户（只读校验，先不开事务）
+        original_record = conn.execute('''
+            SELECT id, course_id, course_name FROM user_practice_records WHERE id = ? AND openid = ?
+        ''', (session_id, openid)).fetchone()
+        if not original_record:
+            raise HTTPException(status_code=404, detail="练习会话不存在")
+
+        # 获取错题列表
+        mistakes = conn.execute('''
+            SELECT question_id, english, chinese, phonetic, correct_answer
+            FROM user_practice_answers
+            WHERE record_id = ? AND is_correct = 0
+            ORDER BY id
+        ''', (session_id,)).fetchall()
+
+        if not mistakes:
+            raise HTTPException(status_code=400, detail="该练习没有错题，无需重练")
+
+        now = utcnow_iso()
+        conn.execute("BEGIN IMMEDIATE")
+
+        # 幂等性检查：是否已经创建过重试会话映射
+        existing_retry = conn.execute('''
+            SELECT retry_session_id FROM practice_session_retries
+            WHERE original_session_id = ? AND openid = ?
+        ''', (session_id, openid)).fetchone()
+
+        if existing_retry:
+            retry_session_id = existing_retry["retry_session_id"]
+            conn.commit()
+        else:
+            retry_session_id = f"retry_{session_id}_{uuid.uuid4().hex[:8]}"
+            conn.execute('''
+            INSERT INTO practice_session_retries (
+                retry_session_id, original_session_id, openid, created_at
+            ) VALUES (?, ?, ?, ?)
+            ''', (retry_session_id, session_id, openid, now))
+            conn.commit()
+
+        return envelope(0, "success", {
+            "sessionId": retry_session_id,
+            "questionCount": len(mistakes),
+            "questions": [
+                {
+                    "questionId": m["question_id"],
+                    "english": m["english"],
+                    "chinese": m["chinese"],
+                    "phonetic": m["phonetic"] or "",
+                    "audio_url": "",
+                } for m in mistakes
+            ]
+        })
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception:
+        conn.rollback()
+        logger.exception("failed to create retry session for %s", openid)
+        raise HTTPException(status_code=500, detail="创建重练会话失败")
+    finally:
+        conn.close()
 
 
 @app.post("/api/ai/generate-course")
@@ -903,9 +1126,9 @@ async def generate_ai_course(req: AIGenerateCourseRequest, current_user: dict = 
             for i, s in enumerate(sentences_out):
                 conn.execute('''
                 INSERT INTO user_course_sentences (
-                    course_id, english, chinese, sort_order, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?)
-                ''', (course_id, s["english"], s["chinese"], i + 1, now, now))
+                    course_id, english, chinese, phonetic, sort_order, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', (course_id, s["english"], s["chinese"], "", i + 1, now, now))
             conn.commit()
         except Exception:
             conn.rollback()
@@ -945,7 +1168,7 @@ async def get_user_course_detail(course_id: str, current_user: dict = Depends(ge
         if not course:
             raise HTTPException(status_code=404, detail="课程不存在")
         sens = conn.execute('''
-            SELECT english, chinese, audio_url FROM user_course_sentences
+            SELECT english, chinese, phonetic, audio_url FROM user_course_sentences
             WHERE course_id = ? ORDER BY sort_order
         ''', (course_id,)).fetchall()
     finally:

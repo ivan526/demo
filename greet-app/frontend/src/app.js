@@ -5,34 +5,36 @@
     var nameInput = document.getElementById('name-input');
     var inputError = document.getElementById('input-error');
     var submitBtn = document.getElementById('submit-btn');
+    var btnText = submitBtn.querySelector('.btn-text');
     var greetingDisplay = document.getElementById('greeting-display');
     var serverTimeDisplay = document.getElementById('server-time');
     var versionDisplay = document.getElementById('version-display');
+    var resultVersionDisplay = document.getElementById('result-version-display');
     var resultSection = document.getElementById('result-section');
-    var errorToast = document.getElementById('error-toast');
-    var errorText = document.getElementById('error-text');
+    var resultContent = resultSection.querySelector('.result-content');
 
-    var toastTimeout = null;
+    var inputErrorTimeout = null;
+    var originalBtnText = '获取问候';
 
     function validateName(name) {
         if (!name || typeof name !== 'string') {
-            return { valid: false, message: '姓名不能为空' };
+            return { valid: false, message: '请输入您的姓名' };
         }
 
         var trimmed = name.trim();
 
         if (trimmed.length === 0) {
-            return { valid: false, message: '姓名不能为空' };
+            return { valid: false, message: '请输入您的姓名' };
         }
 
         if (trimmed.length > 20) {
             return { valid: false, message: '姓名最多支持20个字符' };
         }
 
-        // 特殊字符校验黑名单（32个特殊字符）
-        var specialChars = /[<>"'\\`~!@#$%^&*()+=|{}[\]:;<>,.?\/]/;
+        // 特殊字符校验黑名单（32个特殊字符，与PRD完全一致）
+        var specialChars = /[`~!@#$%^&*()_+{}\[\]|\\:;"'<>,.?\/]/;
         if (specialChars.test(trimmed)) {
-            return { valid: false, message: '姓名包含非法字符' };
+            return { valid: false, message: '姓名不能包含特殊字符，请重新输入' };
         }
 
         return { valid: true, name: trimmed };
@@ -41,39 +43,64 @@
     function showInputError(message) {
         inputError.textContent = message;
         nameInput.classList.add('error');
+
+        // 清除旧定时器
+        if (inputErrorTimeout) {
+            clearTimeout(inputErrorTimeout);
+        }
+
+        // PRD §4.2: 输入类错误显示2秒后自动消失
+        inputErrorTimeout = setTimeout(function() {
+            clearInputError();
+        }, 2000);
     }
 
     function clearInputError() {
         inputError.textContent = '';
         nameInput.classList.remove('error');
+        if (inputErrorTimeout) {
+            clearTimeout(inputErrorTimeout);
+            inputErrorTimeout = null;
+        }
     }
 
-    function showToast(message) {
-        errorText.textContent = message;
-        errorToast.classList.add('show');
-
-        if (toastTimeout) {
-            clearTimeout(toastTimeout);
+    function showResultError(message) {
+        resultContent.className = 'result-content error';
+        greetingDisplay.textContent = message;
+        serverTimeDisplay.textContent = '';
+        if (resultVersionDisplay) {
+            resultVersionDisplay.textContent = '';
         }
+        resultSection.classList.remove('hidden');
 
-        toastTimeout = setTimeout(function() {
-            errorToast.classList.remove('show');
+        // 3秒后自动隐藏错误
+        setTimeout(function() {
+            hideResult();
         }, 3000);
     }
 
     function showLoading() {
         submitBtn.classList.add('loading');
         submitBtn.disabled = true;
+        btnText.textContent = '加载中...';
     }
 
     function hideLoading() {
         submitBtn.classList.remove('loading');
         submitBtn.disabled = false;
+        btnText.textContent = originalBtnText;
     }
 
     function showResult(data) {
+        resultContent.className = 'result-content';
         greetingDisplay.textContent = data.greeting;
         serverTimeDisplay.textContent = data.server_time;
+        if (data.version) {
+            versionDisplay.textContent = data.version;
+            if (resultVersionDisplay) {
+                resultVersionDisplay.textContent = data.version;
+            }
+        }
         resultSection.classList.remove('hidden');
     }
 
@@ -108,13 +135,13 @@
             if (response.ok && result.code === 0) {
                 showResult(result.data);
             } else {
-                showToast(result.msg || '请求失败，请稍后重试');
+                showResultError(result.msg || '服务异常，请稍后重试');
             }
         } catch (error) {
             if (error.name === 'NetworkError' || error.message.includes('network')) {
-                showToast('网络连接失败，请检查网络后重试');
+                showResultError('网络异常，请稍后重试');
             } else {
-                showToast('服务器请求失败，请稍后重试');
+                showResultError('服务异常，请稍后重试');
             }
         } finally {
             hideLoading();

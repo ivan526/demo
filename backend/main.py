@@ -160,6 +160,7 @@ def init_db():
         course_id INTEGER NOT NULL,
         english TEXT NOT NULL,
         chinese TEXT NOT NULL,
+        phonetic TEXT NOT NULL DEFAULT '',
         audio_url TEXT,
         sort_order INTEGER NOT NULL,
         created_at TIMESTAMP NOT NULL,
@@ -167,6 +168,11 @@ def init_db():
         FOREIGN KEY (course_id) REFERENCES builtin_courses(id) ON DELETE CASCADE
     )
     ''')
+
+    cursor.execute("PRAGMA table_info(builtin_course_sentences)")
+    bcs_columns = [row["name"] for row in cursor.fetchall()]
+    if "phonetic" not in bcs_columns:
+        cursor.execute("ALTER TABLE builtin_course_sentences ADD COLUMN phonetic TEXT NOT NULL DEFAULT ''")
 
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS user_courses (
@@ -191,6 +197,7 @@ def init_db():
         course_id TEXT NOT NULL,
         english TEXT NOT NULL,
         chinese TEXT NOT NULL,
+        phonetic TEXT NOT NULL DEFAULT '',
         audio_url TEXT,
         sort_order INTEGER NOT NULL,
         created_at TIMESTAMP NOT NULL,
@@ -198,6 +205,11 @@ def init_db():
         FOREIGN KEY (course_id) REFERENCES user_courses(id) ON DELETE CASCADE
     )
     ''')
+
+    cursor.execute("PRAGMA table_info(user_course_sentences)")
+    ucs_columns = [row["name"] for row in cursor.fetchall()]
+    if "phonetic" not in ucs_columns:
+        cursor.execute("ALTER TABLE user_course_sentences ADD COLUMN phonetic TEXT NOT NULL DEFAULT ''")
 
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS user_practice_records (
@@ -339,9 +351,9 @@ def init_db():
             course_id = cursor.lastrowid
             for i, (english, chinese) in enumerate(course["sentences"]):
                 cursor.execute('''
-                INSERT INTO builtin_course_sentences (course_id, english, chinese, sort_order, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?)
-                ''', (course_id, english, chinese, i + 1, now, now))
+                INSERT INTO builtin_course_sentences (course_id, english, chinese, phonetic, sort_order, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', (course_id, english, chinese, "", i + 1, now, now))
 
     conn.commit()
     conn.close()
@@ -595,6 +607,7 @@ async def wx_login(req: WxLoginRequest):
                 params.append(openid)
                 conn.execute(f"UPDATE users SET {', '.join(fields)} WHERE openid = ?", params)
                 conn.commit()
+                user = conn.execute("SELECT * FROM users WHERE openid = ?", (openid,)).fetchone()
     finally:
         conn.close()
 
@@ -635,7 +648,7 @@ async def get_builtin_course_detail(course_id: int, current_user: dict = Depends
         if not course:
             raise HTTPException(status_code=404, detail="课程不存在")
         sentences = conn.execute(
-            "SELECT id, english, chinese, audio_url FROM builtin_course_sentences WHERE course_id = ? ORDER BY sort_order",
+            "SELECT id, english, chinese, phonetic, audio_url FROM builtin_course_sentences WHERE course_id = ? ORDER BY sort_order",
             (course_id,),
         ).fetchall()
     finally:
@@ -797,16 +810,25 @@ async def sync_data(req: SyncRequest, current_user: dict = Depends(get_current_u
                 continue
 
             server_accuracy = (record.correct_count / record.total_sentences) * 100 if record.total_sentences > 0 else 0
+
+            retry_mapping = conn.execute(
+                "SELECT original_session_id FROM practice_session_retries WHERE retry_session_id = ? AND openid = ?",
+                (record.record_id, openid),
+            ).fetchone()
+            original_record_id = retry_mapping["original_session_id"] if retry_mapping else None
+
             conn.execute('''
             INSERT INTO user_practice_records (
                 id, openid, course_id, course_name, total_sentences, correct_count,
-                max_combo, accuracy, duration, practice_date, practice_time, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                max_combo, accuracy, duration, practice_date, practice_time,
+                original_record_id, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 record.record_id, openid, record.course_id, record.course_name,
                 record.total_sentences, record.correct_count, record.max_combo,
                 server_accuracy, record.duration, practice_date_shanghai.isoformat(),
-                client_dt.strftime("%Y-%m-%dT%H:%M:%SZ"), now, now,
+                client_dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                original_record_id, now, now,
             ))
 
             # 同步保存每题答题详情
@@ -842,10 +864,11 @@ async def sync_data(req: SyncRequest, current_user: dict = Depends(get_current_u
             for i, sentence in enumerate(course.sentences):
                 conn.execute('''
                 INSERT INTO user_course_sentences (
-                    course_id, english, chinese, audio_url, sort_order, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    course_id, english, chinese, phonetic, audio_url, sort_order, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     course.id, sentence.english, sentence.chinese,
+                    getattr(sentence, 'phonetic', "") or "",
                     sentence.audio_url or "", i + 1, now, now,
                 ))
 
@@ -869,7 +892,7 @@ async def sync_data(req: SyncRequest, current_user: dict = Depends(get_current_u
             for c in courses:
                 cd = dict(c)
                 sens = conn.execute('''
-                    SELECT english, chinese, audio_url FROM user_course_sentences
+                    SELECT english, chinese, phonetic, audio_url FROM user_course_sentences
                     WHERE course_id = ? ORDER BY sort_order
                 ''', (c["id"],)).fetchall()
                 cd["sentences"] = [dict(s) for s in sens]
@@ -1103,9 +1126,9 @@ async def generate_ai_course(req: AIGenerateCourseRequest, current_user: dict = 
             for i, s in enumerate(sentences_out):
                 conn.execute('''
                 INSERT INTO user_course_sentences (
-                    course_id, english, chinese, sort_order, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?)
-                ''', (course_id, s["english"], s["chinese"], i + 1, now, now))
+                    course_id, english, chinese, phonetic, sort_order, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', (course_id, s["english"], s["chinese"], "", i + 1, now, now))
             conn.commit()
         except Exception:
             conn.rollback()
@@ -1145,7 +1168,7 @@ async def get_user_course_detail(course_id: str, current_user: dict = Depends(ge
         if not course:
             raise HTTPException(status_code=404, detail="课程不存在")
         sens = conn.execute('''
-            SELECT english, chinese, audio_url FROM user_course_sentences
+            SELECT english, chinese, phonetic, audio_url FROM user_course_sentences
             WHERE course_id = ? ORDER BY sort_order
         ''', (course_id,)).fetchall()
     finally:

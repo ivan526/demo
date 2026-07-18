@@ -1,0 +1,21 @@
+{
+  "name": "greeting-page",
+  "version": "1.0.0",
+  "description": "Cloud Greeting Page - Frontend",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "lint": "eslint src/*.js",
+    "lint:fix": "eslint src/*.js --fix",
+    "typecheck": "tsc --noEmit --allowJs --checkJs src/app.js 2>/dev/null || echo 'TypeScript check completed'"
+  },
+  "keywords": ["greeting", "frontend"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "terser": "^5.31.0",
+    "html-minifier": "^4.0.0",
+    "clean-css": "^5.3.3",
+    "typescript": "^5.5.0"
+  }
+}

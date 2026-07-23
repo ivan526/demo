@@ -19,22 +19,24 @@ function getServerTime() {
   const hours = String(utc8.getUTCHours()).padStart(2, '0');
   const minutes = String(utc8.getUTCMinutes()).padStart(2, '0');
   const seconds = String(utc8.getUTCSeconds()).padStart(2, '0');
-  return `${year}年${month}月${day}日 ${hours}:${minutes}:${seconds}`;
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 }
 
 function validateName(name) {
   if (typeof name !== 'string') {
-    return { valid: false, message: '姓名必须是字符串' };
+    return { valid: false, code: 40003, message: '姓名不能为空' };
   }
   const trimmed = name.trim();
   if (!trimmed) {
-    return { valid: false, message: '姓名不能为空' };
+    return { valid: false, code: 40003, message: '姓名不能为空' };
   }
-  if (trimmed.length < MIN_NAME_LENGTH) {
-    return { valid: false, message: `姓名长度不能少于${MIN_NAME_LENGTH}个字符` };
+  if (trimmed.length < MIN_NAME_LENGTH || trimmed.length > MAX_NAME_LENGTH) {
+    return { valid: false, code: 40001, message: '姓名长度必须在2-20字符之间' };
   }
-  if (trimmed.length > MAX_NAME_LENGTH) {
-    return { valid: false, message: `姓名长度不能超过${MAX_NAME_LENGTH}个字符` };
+  // 特殊字符黑名单校验，只允许中文、英文、数字、下划线、减号
+  const specialCharReg = /[^\u4e00-\u9fa5a-zA-Z0-9_-]/;
+  if (specialCharReg.test(trimmed)) {
+    return { valid: false, code: 40002, message: '姓名包含非法字符' };
   }
   return { valid: true, value: trimmed };
 }
@@ -44,20 +46,24 @@ app.post('/api/greet', (req, res) => {
   const validation = validateName(name);
   if (!validation.valid) {
     return res.status(400).json({
-      code: 400,
-      message: validation.message,
+      code: validation.code,
+      msg: validation.message,
       data: null
     });
   }
 
   const version = process.env.VERSION || '1.0.0';
   const greeting = `你好，${validation.value}！欢迎使用云端问候服务 🌟`;
-  const serverTime = getServerTime();
+  const server_time = getServerTime();
 
   return res.json({
-    greeting,
-    serverTime,
-    version: `v${version}`
+    code: 0,
+    msg: "success",
+    data: {
+      greeting,
+      server_time,
+      version: `v${version}`
+    }
   });
 });
 
@@ -78,17 +84,16 @@ app.get('*', (req, res, next) => {
 app.use((req, res) => {
   res.status(404).json({
     code: 404,
-    message: '请求的资源不存在',
+    msg: '请求的资源不存在',
     data: null
   });
 });
 
 app.use((err, req, res, _next) => {
   console.error('Unhandled error:', err);
-  const status = err.status || 500;
-  res.status(status).json({
-    code: status,
-    message: err.message || '服务器内部错误',
+  res.status(500).json({
+    code: 50001,
+    msg: '服务器内部错误',
     data: null
   });
 });

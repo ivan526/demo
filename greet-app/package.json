@@ -1,0 +1,17 @@
+{
+    "name": "greet-app-frontend",
+    "version": "1.0.0",
+    "description": "云端问候页面 - 前端",
+    "scripts": {
+        "build": "node build.js",
+        "check": "node --check frontend/dist/app.js"
+    },
+    "devDependencies": {
+        "terser": "^5.16.0",
+        "html-minifier-terser": "^7.2.0",
+        "clean-css": "^5.3.2"
+    },
+    "keywords": ["greet", "frontend"],
+    "author": "",
+    "license": "ISC"
+}

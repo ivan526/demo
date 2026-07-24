@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>云端问候</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1 class="title">云端问候</h1>
+            <p class="subtitle">输入您的姓名，获取来自云端的问候</p>
+            <form id="greet-form">
+                <div class="input-group">
+                    <input type="text" id="name-input" placeholder="请输入您的姓名" autocomplete="off" maxlength="20">
+                    <div id="input-error" class="error-message"></div>
+                </div>
+                <button type="submit" id="submit-btn" class="btn">
+                    <span class="btn-text">获取问候</span>
+                </button>
+            </form>
+            <div id="result-section" class="result-section hidden">
+                <div class="result-content">
+                    <div class="greeting-text" id="greeting-display"></div>
+                    <div class="info-item">
+                        <span class="info-label">当前服务器时间：</span>
+                        <span class="info-value" id="server-time"></span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">当前部署版本：</span>
+                        <span class="info-value" id="result-version-display"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="version-footer" class="version-footer">
+            当前版本：<span id="version-display">1.0.0</span>
+        </div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>

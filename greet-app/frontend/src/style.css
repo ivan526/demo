@@ -1,0 +1,231 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.container {
+    width: 100%;
+    padding: 20px;
+}
+
+.card {
+    background: white;
+    border-radius: 16px;
+    padding: 40px 30px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    width: 380px;
+    max-width: 100%;
+    margin: 0 auto;
+    animation: slideUp 0.4s ease-out;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.title {
+    text-align: center;
+    color: #333;
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.subtitle {
+    text-align: center;
+    color: #666;
+    font-size: 14px;
+    margin-bottom: 30px;
+}
+
+.input-group {
+    margin-bottom: 20px;
+}
+
+#name-input {
+    width: 320px;
+    max-width: 100%;
+    height: 44px;
+    padding: 0 16px;
+    font-size: 16px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    outline: none;
+    transition: border-color 0.3s, box-shadow 0.3s;
+    display: block;
+    margin: 0 auto;
+}
+
+#name-input:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+#name-input.error {
+    border-color: #f44336;
+}
+
+.error-message {
+    color: #f44336;
+    font-size: 12px;
+    margin-top: 6px;
+    min-height: 16px;
+    text-align: center;
+}
+
+.btn {
+    width: 320px;
+    max-width: 100%;
+    height: 44px;
+    font-size: 16px;
+    font-weight: 500;
+    color: white;
+    background: #2563eb;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.2s, box-shadow 0.2s;
+    position: relative;
+    overflow: hidden;
+    display: block;
+    margin: 0 auto;
+}
+
+.btn:hover {
+    background: #1d4ed8;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
+}
+
+.btn:active {
+    transform: translateY(0);
+}
+
+.btn:disabled {
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn.loading {
+    background: #93c5fd;
+}
+
+.btn.loading:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+.result-section {
+    margin-top: 24px;
+    padding-top: 24px;
+    border-top: 1px solid #e5e7eb;
+    animation: fadeIn 0.3s ease-out;
+}
+
+.result-section.hidden {
+    display: none;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.result-content {
+    background: #f3f4f6;
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.result-content.error {
+    background: #f44336;
+    color: white;
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.greeting-text {
+    font-size: 18px;
+    color: #333;
+    text-align: center;
+    margin-bottom: 16px;
+    font-weight: 500;
+    line-height: 1.6;
+}
+
+.result-content.error .greeting-text {
+    color: white;
+    margin-bottom: 0;
+}
+
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+    color: #666;
+}
+
+.info-item + .info-item {
+    margin-top: 8px;
+}
+
+.result-content.error .info-item {
+    display: none;
+}
+
+.info-label {
+    font-weight: 500;
+}
+
+.info-value {
+    color: #333;
+}
+
+.version-footer {
+    text-align: center;
+    margin-top: 16px;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.55);
+}
+
+@media (max-width: 480px) {
+    .card {
+        width: 100%;
+        padding: 30px 20px;
+    }
+
+    #name-input,
+    .btn {
+        width: 100%;
+    }
+
+    .title {
+        font-size: 24px;
+    }
+
+    .greeting-text {
+        font-size: 16px;
+    }
+}

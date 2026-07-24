@@ -6,20 +6,33 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+// 捕获JSON解析错误
+app.use((err, req, res, next) => {
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+    return res.status(400).json({
+      code: 400,
+      msg: '请求参数格式错误',
+      data: null
+    });
+  }
+  next(err);
+});
 
 const MIN_NAME_LENGTH = 2;
 const MAX_NAME_LENGTH = 20;
 
 function getServerTime() {
   const now = new Date();
-  const utc8 = new Date(now.getTime() + 8 * 60 * 60 * 1000);
-  const year = utc8.getUTCFullYear();
-  const month = String(utc8.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(utc8.getUTCDate()).padStart(2, '0');
-  const hours = String(utc8.getUTCHours()).padStart(2, '0');
-  const minutes = String(utc8.getUTCMinutes()).padStart(2, '0');
-  const seconds = String(utc8.getUTCSeconds()).padStart(2, '0');
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+  return now.toLocaleString('zh-CN', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  }).replace(/\//g, '-');
 }
 
 function validateName(name) {

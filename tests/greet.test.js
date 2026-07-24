@@ -70,7 +70,7 @@ describe('getServerTime', () => {
   test('returns formatted time string', () => {
     const time = getServerTime();
     expect(typeof time).toBe('string');
-    expect(time).toMatch(/^\d{4}年\d{2}月\d{2}日 \d{2}:\d{2}:\d{2}$/);
+    expect(time).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
   });
 });
 
@@ -81,10 +81,12 @@ describe('POST /api/greet', () => {
       .send({ name: '张三' })
       .expect(200);
 
-    expect(res.body.greeting).toContain('张三');
-    expect(res.body.greeting).toContain('欢迎使用云端问候服务');
-    expect(res.body.serverTime).toMatch(/^\d{4}年\d{2}月\d{2}日 \d{2}:\d{2}:\d{2}$/);
-    expect(res.body.version).toMatch(/^v/);
+    expect(res.body.code).toBe(0);
+    expect(res.body.msg).toBe('success');
+    expect(res.body.data.greeting).toContain('张三');
+    expect(res.body.data.greeting).toContain('欢迎使用云端问候服务');
+    expect(res.body.data.server_time).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
+    expect(res.body.data.version).toMatch(/^v/);
   });
 
   test('returns version from env var VERSION', async () => {
@@ -94,7 +96,7 @@ describe('POST /api/greet', () => {
       .post('/api/greet')
       .send({ name: '李四' })
       .expect(200);
-    expect(res.body.version).toBe('v2.5.0');
+    expect(res.body.data.version).toBe('v2.5.0');
     if (originalVersion === undefined) {
       delete process.env.VERSION;
     } else {
@@ -108,7 +110,7 @@ describe('POST /api/greet', () => {
       .post('/api/greet')
       .send({ name: '王五' })
       .expect(200);
-    expect(res.body.version).toBe('v1.0.0');
+    expect(res.body.data.version).toBe('v1.0.0');
   });
 
   test('rejects empty name with 400', async () => {
@@ -117,8 +119,8 @@ describe('POST /api/greet', () => {
       .send({ name: '' })
       .expect(400);
 
-    expect(res.body.code).toBe(400);
-    expect(res.body.message).toBe('姓名不能为空');
+    expect(res.body.code).toBe(40003);
+    expect(res.body.msg).toBe('姓名不能为空');
     expect(res.body.data).toBe(null);
   });
 
@@ -128,7 +130,7 @@ describe('POST /api/greet', () => {
       .send({})
       .expect(400);
 
-    expect(res.body.code).toBe(400);
+    expect(res.body.code).toBe(40003);
     expect(res.body.data).toBe(null);
   });
 
@@ -138,8 +140,8 @@ describe('POST /api/greet', () => {
       .send({ name: 'a' })
       .expect(400);
 
-    expect(res.body.code).toBe(400);
-    expect(res.body.message).toContain('2');
+    expect(res.body.code).toBe(40001);
+    expect(res.body.msg).toContain('2');
     expect(res.body.data).toBe(null);
   });
 
@@ -149,8 +151,8 @@ describe('POST /api/greet', () => {
       .send({ name: 'abcdefghijklmnopqrstu' })
       .expect(400);
 
-    expect(res.body.code).toBe(400);
-    expect(res.body.message).toContain('20');
+    expect(res.body.code).toBe(40001);
+    expect(res.body.msg).toContain('20');
     expect(res.body.data).toBe(null);
   });
 
@@ -160,8 +162,8 @@ describe('POST /api/greet', () => {
       .send({ name: '   ' })
       .expect(400);
 
-    expect(res.body.code).toBe(400);
-    expect(res.body.message).toBe('姓名不能为空');
+    expect(res.body.code).toBe(40003);
+    expect(res.body.msg).toBe('姓名不能为空');
     expect(res.body.data).toBe(null);
   });
 
@@ -171,8 +173,8 @@ describe('POST /api/greet', () => {
       .send({ name: '  张三  ' })
       .expect(200);
 
-    expect(res.body.greeting).toContain('张三');
-    expect(res.body.greeting).not.toContain('  张三  ');
+    expect(res.body.data.greeting).toContain('张三');
+    expect(res.body.data.greeting).not.toContain('  张三  ');
   });
 
   test('returns 404 for unknown API routes', async () => {
@@ -181,6 +183,7 @@ describe('POST /api/greet', () => {
       .expect(404);
 
     expect(res.body.code).toBe(404);
+    expect(res.body.msg).toBe('请求的资源不存在');
     expect(res.body.data).toBe(null);
   });
 
@@ -190,6 +193,7 @@ describe('POST /api/greet', () => {
       .expect(404);
 
     expect(res.body.code).toBe(404);
+    expect(res.body.msg).toBe('请求的资源不存在');
     expect(res.body.data).toBe(null);
   });
 
@@ -201,7 +205,7 @@ describe('POST /api/greet', () => {
       .expect(400);
 
     expect(res.body.code).toBe(400);
-    expect(res.body.message).toBeDefined();
+    expect(res.body.msg).toBe('请求参数格式错误');
     expect(res.body.data).toBe(null);
   });
 });

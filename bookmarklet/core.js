@@ -25,6 +25,7 @@
       case "notIn": return expected.map(String).indexOf(actual) === -1;
       case "contains": return actual.indexOf(String(expected)) !== -1;
       case "matches": return new RegExp(String(expected), condition.flags || "").test(actual);
+      case "notMatches": return !new RegExp(String(expected), condition.flags || "").test(actual);
       case "empty": return actual === "";
       case "notEmpty": return actual !== "";
       default: throw new Error("未知操作符: " + condition.operator);

@@ -13,6 +13,7 @@ window.SHIPMENT_BOOKMARKLET_CONFIG = {
     productModel: { label: "产品型号", selector: "td[field='prodModel']", selectedRowSelector: ".grid-row.igrid-selected", defaultRowSelector: ".grid-row", selectedRowKeyAttribute: "_row", optional: true },
     productModelLocked: { label: "产品型号带锁", selector: "td[field='prodModel'] .lock,td[field='prodModel'] .locked,td[field='prodModel'] .jalor-icon.lock,td[field='prodModel'] [title*='锁'],td[field='prodModel'] [class*='lock']", presentValue: "✔", selectedRowSelector: ".grid-row.igrid-selected", defaultRowSelector: ".grid-row", selectedRowKeyAttribute: "_row", optional: true },
     countryRegion: { label: "国家/地区", selector: "input[name='countryName'],input[name='countryRegionName'],input[name='country'],input[name='countryAreaName'],td[field='countryName'],td[field='countryRegionName'],td[field='country'],td[field='countryAreaName']", value: "value", optional: true },
+    receiverCity: { label: "收货城市", selector: "input[name='receiveCity'],input[name='receiverCity'],input[name='cityName'],input[name='receiveCityName'],td[field='receiveCity'],td[field='receiverCity'],td[field='cityName'],td[field='receiveCityName']", value: "value", optional: true },
     processCode: { label: "流程编号", selector: "input[name='rdSampleApplyId']", value: "value", optional: true },
     applicantId: { label: "申请人ID", selector: "input[name='applyUserName']", value: "value", normalize: "employeeId", optional: true },
     chargeAccountId: { label: "挂账人", selector: "input[name='reqUserName']", value: "value", normalize: "employeeId", optional: true },
@@ -62,8 +63,7 @@ window.SHIPMENT_BOOKMARKLET_CONFIG = {
       priority: 200,
       all: [
         { field: "samplePurpose", operator: "in", value: ["seeding sample", "MKT-媒体评测", "店员评测"] },
-        { field: "accountRegion", operator: "notIn", value: ["欧洲终端业务部"] },
-        { field: "countryRegion", operator: "notIn", value: ["土耳其"] }
+        { field: "accountRegion", operator: "notIn", value: ["欧洲终端业务部", "总部"] }
       ],
       output: "粘贴\"not for sale\"标签",
       requiredFields: ["samplePurpose", "accountRegion", "countryRegion"]
@@ -74,7 +74,7 @@ window.SHIPMENT_BOOKMARKLET_CONFIG = {
       enabled: true,
       priority: 200,
       all: [
-        { field: "accountRegion", operator: "in", value: ["欧洲终端业务部"] },
+        { field: "accountRegion", operator: "in", value: ["欧洲终端业务部", "总部"] },
         { field: "countryRegion", operator: "notIn", value: ["土耳其"] }
       ],
       output: "粘贴“not for sale\"标签，进口清关发票写上“SAMPLE ONLY, NOT FOR SALE”",
@@ -87,10 +87,11 @@ window.SHIPMENT_BOOKMARKLET_CONFIG = {
       priority: 400,
       all: [
         { field: "productModelLocked", operator: "equals", value: "✔" },
-        { field: "countryRegion", operator: "notIn", value: ["日本"] }
+        { field: "countryRegion", operator: "notIn", value: ["日本"] },
+        { field: "receiverCity", operator: "notMatches", value: "[\\u3400-\\u4DBF\\u4E00-\\u9FFF\\uF900-\\uFAFF]" }
       ],
-      output: "特殊发货管理",
-      requiredFields: ["productModelLocked", "countryRegion"]
+      output: "特殊发货",
+      requiredFields: ["productModelLocked", "countryRegion", "receiverCity"]
     },
     {
       id: "stocking-contact",

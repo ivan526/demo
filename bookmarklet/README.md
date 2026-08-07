@@ -86,9 +86,11 @@
 
 ### 规则 6：特殊发货标签
 
-产品型号单元格前面带锁，且国家/地区不是“日本”时，输出 `特殊发货管理`。当前先按产品型号单元格内常见的 `.lock` / `.locked` / `.jalor-icon.lock` / `title*="锁"` / `class*="lock"` 识别锁图标；如果页面锁图标使用其他结构，请继续提供该单元格 HTML。
+产品型号单元格前面带锁、国家/地区不是“日本”，且收货信息中的收货城市不包含中文字符时，输出 `特殊发货管理`。当前先按产品型号单元格内常见的 `.lock` / `.locked` / `.jalor-icon.lock` / `title*="锁"` / `class*="lock"` 识别锁图标；如果页面锁图标使用其他结构，请继续提供该单元格 HTML。
 
 国家/地区当前尝试读取常见的 `countryName` / `countryRegionName` / `country` / `countryAreaName` 输入框或表格字段；如果测试时提示“国家/地区”缺失，请提供该字段 HTML 以补充选择器。
+
+收货城市当前尝试读取常见的 `receiveCity` / `receiverCity` / `cityName` / `receiveCityName` 输入框或表格字段，并检测 CJK 中文字符。如果测试时提示“收货城市”缺失，请提供收货城市元素及其父级 HTML，以便补充准确的页面选择器。
 
 ### 规则 7：安装样机管理软件
 

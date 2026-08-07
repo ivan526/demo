@@ -25,7 +25,7 @@
   function readRaw(element, spec) {
     return spec.presentValue !== undefined ? spec.presentValue :
       (spec.attribute ? (element.getAttribute(spec.attribute) || element.textContent) :
-        (spec.value === "value" ? element.value : element.textContent));
+        (spec.value === "value" && element.value != null ? element.value : element.textContent));
   }
 
   function findElement(root, spec) {

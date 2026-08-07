@@ -34,6 +34,8 @@ test("supports normalization and condition operators", () => {
   expect(core.normalize(" de ", "upper")).toBe("DE");
   expect(core.compare("Germany", { operator: "contains", value: "man" })).toBe(true);
   expect(core.compare("DE", { operator: "matches", value: "^[A-Z]{2}$" })).toBe(true);
+  expect(core.compare("Munich", { operator: "notMatches", value: "[\\u4E00-\\u9FFF]" })).toBe(true);
+  expect(core.compare("慕尼黑", { operator: "notMatches", value: "[\\u4E00-\\u9FFF]" })).toBe(false);
 });
 
 test("renders entrusted shipment and process identifiers", () => {
@@ -345,7 +347,8 @@ test("renders not-for-sale and special shipping labels", () => {
   }, { rules: [runtimeConfig.rules.find((rule) => rule.id === "not-for-sale-sample-label-2")] }).remark).toBe("粘贴“not for sale\"标签，进口清关发票写上“SAMPLE ONLY, NOT FOR SALE”");
   expect(core.generate({
     productModelLocked: "✔",
-    countryRegion: "德国"
+    countryRegion: "德国",
+    receiverCity: "Munich"
   }, { rules: [runtimeConfig.rules.find((rule) => rule.id === "special-shipping-label")] }).remark).toBe("特殊发货管理");
 });
 
@@ -363,8 +366,24 @@ test("excludes Turkey and Japan from the new label rules", () => {
   }, { rules: [runtimeConfig.rules.find((rule) => rule.id === "not-for-sale-sample-label-2")] }).remark).toBe("");
   expect(core.generate({
     productModelLocked: "✔",
-    countryRegion: "日本"
+    countryRegion: "日本",
+    receiverCity: "Tokyo"
   }, { rules: [runtimeConfig.rules.find((rule) => rule.id === "special-shipping-label")] }).remark).toBe("");
+});
+
+test("special shipping label requires a receiver city without Chinese characters", () => {
+  const runtimeConfig = loadBookmarkletConfig();
+  const rule = runtimeConfig.rules.find((item) => item.id === "special-shipping-label");
+
+  expect(core.generate({
+    productModelLocked: "✔",
+    countryRegion: "德国",
+    receiverCity: "慕尼黑 Munich"
+  }, { rules: [rule] }).remark).toBe("");
+  expect(() => core.generate({
+    productModelLocked: "✔",
+    countryRegion: "德国"
+  }, { rules: [rule] })).toThrow("规则“特殊发货标签”缺少字段：receiverCity");
 });
 
 test("applies the updated account-region conditions to not-for-sale labels", () => {
@@ -408,6 +427,7 @@ test("outputs matched runtime rules in the required business order", () => {
 test("runtime config contains country and model-lock fields for label rules", () => {
   const runtimeConfig = loadBookmarkletConfig();
   expect(runtimeConfig.fields.countryRegion.label).toBe("国家/地区");
+  expect(runtimeConfig.fields.receiverCity.label).toBe("收货城市");
   expect(runtimeConfig.fields.productModelLocked.presentValue).toBe("✔");
   expect(runtimeConfig.rules.find((rule) => rule.id === "not-for-sale-sample-label-1").name).toBe("非销售样机标签1");
   expect(runtimeConfig.rules.find((rule) => rule.id === "not-for-sale-sample-label-2").name).toBe("非销售样机标签2");

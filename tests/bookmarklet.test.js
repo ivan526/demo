@@ -434,7 +434,10 @@ test("runtime config contains country and model-lock fields for label rules", ()
     revealSelector: "li[tabid='goodsInfoTab'] a",
     revealTimeout: 5000
   });
-  expect(runtimeConfig.fields.productModelLocked.presentValue).toBe("✔");
+  expect(runtimeConfig.fields.productModelLocked).toMatchObject({
+    selector: "td[field='prodModel'] .jalor-icon.lock",
+    presentValue: "✔"
+  });
   expect(runtimeConfig.rules.find((rule) => rule.id === "not-for-sale-sample-label-1").name).toBe("非销售样机标签1");
   expect(runtimeConfig.rules.find((rule) => rule.id === "not-for-sale-sample-label-2").name).toBe("非销售样机标签2");
   expect(runtimeConfig.rules.find((rule) => rule.id === "special-shipping-label").name).toBe("特殊发货标签");

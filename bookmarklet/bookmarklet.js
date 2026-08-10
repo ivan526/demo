@@ -54,6 +54,13 @@
     return first;
   }
 
+  function findRow(selector, spec) {
+    var rows = Array.prototype.slice.call(document.querySelectorAll(selector));
+    return spec.rowContainsSelector
+      ? rows.find(function (row) { return row.querySelector(spec.rowContainsSelector); })
+      : rows[0];
+  }
+
 
   function readHistoryHandler(spec, data) {
     var expectedOpinionText = data[spec.opinionContainsField] || spec.opinionContains || "";
@@ -76,8 +83,8 @@
     var root = document;
     var selectedRow = null;
     if (spec.selectedRowSelector) {
-      selectedRow = document.querySelector(spec.selectedRowSelector);
-      if (!selectedRow && spec.defaultRowSelector) selectedRow = document.querySelector(spec.defaultRowSelector);
+      selectedRow = findRow(spec.selectedRowSelector, spec);
+      if (!selectedRow && spec.defaultRowSelector) selectedRow = findRow(spec.defaultRowSelector, spec);
       root = selectedRow;
       if (!root) {
         if (spec.optional) return "";

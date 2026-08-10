@@ -11,7 +11,7 @@ window.SHIPMENT_BOOKMARKLET_CONFIG = {
     },
     entrustedShipmentNo: { label: "委托发货单号", selector: "td[field='entrustNo']", attribute: "val", selectedRowSelector: ".grid-row.igrid-selected", defaultRowSelector: ".grid-row", selectedRowKeyAttribute: "_row", optional: true },
     productModel: { label: "产品型号", selector: "td[field='prodModel']", selectedRowSelector: ".grid-row.igrid-selected", defaultRowSelector: ".grid-row", selectedRowKeyAttribute: "_row", optional: true },
-    productModelLocked: { label: "产品型号带锁", selector: "td[field='prodModel'] .jalor-icon.lock", presentValue: "✔", selectedRowSelector: ".grid-row.igrid-selected", defaultRowSelector: ".grid-row", selectedRowKeyAttribute: "_row", optional: true },
+    productModelLocked: { label: "产品型号带锁", selector: ".jalor-icon.lock", presentValue: "✔", selectedRowSelector: ".grid-row.igrid-selected", defaultRowSelector: ".grid-row", rowContainsSelector: "td[field='prodModel']", selectedRowKeyAttribute: "_row", optional: true },
     countryRegion: { label: "国家/地区", selector: "input[name='countryName'],input[name='countryRegionName'],input[name='country'],input[name='countryAreaName'],td[field='countryName'],td[field='countryRegionName'],td[field='country'],td[field='countryAreaName']", value: "value", optional: true },
     receiverCity: { label: "收货城市", selector: "input#cityName[name='baseLastConsigneeInfoVO.cityName'],td[field='consigneeVO.cityName']", value: "value", revealSelector: "li[tabid='goodsInfoTab'] a", revealTimeout: 5000, optional: true },
     processCode: { label: "流程编号", selector: "input[name='rdSampleApplyId']", value: "value", optional: true },

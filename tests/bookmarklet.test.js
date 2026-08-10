@@ -427,7 +427,13 @@ test("outputs matched runtime rules in the required business order", () => {
 test("runtime config contains country and model-lock fields for label rules", () => {
   const runtimeConfig = loadBookmarkletConfig();
   expect(runtimeConfig.fields.countryRegion.label).toBe("国家/地区");
-  expect(runtimeConfig.fields.receiverCity.label).toBe("收货城市");
+  expect(runtimeConfig.fields.receiverCity).toMatchObject({
+    label: "收货城市",
+    selector: "input#cityName[name='baseLastConsigneeInfoVO.cityName'],td[field='consigneeVO.cityName']",
+    value: "value",
+    revealSelector: "li[tabid='goodsInfoTab'] a",
+    revealTimeout: 5000
+  });
   expect(runtimeConfig.fields.productModelLocked.presentValue).toBe("✔");
   expect(runtimeConfig.rules.find((rule) => rule.id === "not-for-sale-sample-label-1").name).toBe("非销售样机标签1");
   expect(runtimeConfig.rules.find((rule) => rule.id === "not-for-sale-sample-label-2").name).toBe("非销售样机标签2");

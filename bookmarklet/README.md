@@ -90,7 +90,7 @@
 
 国家/地区当前尝试读取常见的 `countryName` / `countryRegionName` / `country` / `countryAreaName` 输入框或表格字段；如果测试时提示“国家/地区”缺失，请提供该字段 HTML 以补充选择器。
 
-收货城市当前尝试读取常见的 `receiveCity` / `receiverCity` / `cityName` / `receiveCityName` 输入框或表格字段，并检测 CJK 中文字符。如果测试时提示“收货城市”缺失，请提供收货城市元素及其父级 HTML，以便补充准确的页面选择器。
+收货城市同时查询 `input#cityName[name='baseLastConsigneeInfoVO.cityName']` 和 `td[field='consigneeVO.cityName']`，并优先使用第一个非空值。如果城市尚未渲染，程序会自动点击 `li[tabid='goodsInfoTab'] a` 打开“收货信息”页签，并最多等待 5 秒，直到 `td[field='consigneeVO.cityName']` 出现且具有文本，再继续生成备注。因此不需要先手工打开“收货信息”。程序检测 CJK 中文字符；“成都市”会使特殊发货标签不命中，`Munich` 等不含中文的城市才满足该条件。
 
 ### 规则 7：安装样机管理软件
 

@@ -10,7 +10,7 @@
     if (mode === "upper") return text.toUpperCase();
     if (mode === "lower") return text.toLowerCase();
     if (mode === "employeeId") {
-      var match = text.match(/^([A-Za-z])\S*\s+(\d+)$/);
+      var match = text.match(/^([A-Za-z]).*\s+([A-Za-z]*\d+)$/);
       return match ? match[1].toLowerCase() + match[2] : text;
     }
     return text;

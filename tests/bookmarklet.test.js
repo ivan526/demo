@@ -145,6 +145,9 @@ test("PO applicant rule rejects an empty account holder", () => {
 test("normalizes employee display names to employee IDs", () => {
   expect(core.normalize("wutong 00975566", "employeeId")).toBe("w00975566");
   expect(core.normalize("WUTONG   00975566", "employeeId")).toBe("w00975566");
+  expect(core.normalize("Mario Ivan Martinez Chavarria 00371300", "employeeId")).toBe("m00371300");
+  expect(core.normalize("Archana Gobind 84345750", "employeeId")).toBe("a84345750");
+  expect(core.normalize("Lucas Ucciferri WX1435456", "employeeId")).toBe("lWX1435456");
   expect(core.normalize("w00975566", "employeeId")).toBe("w00975566");
 });
 

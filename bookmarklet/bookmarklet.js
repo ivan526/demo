@@ -4,6 +4,7 @@
   var config = window.SHIPMENT_BOOKMARKLET_CONFIG;
   var core = window.ShipmentRemarkCore;
   if (!config || !core) return alert("发货备注助手配置加载失败");
+  window.SHIPMENT_BOOKMARKLET_DEBUG = { status: "waiting-for-fields", capturedAt: new Date().toISOString() };
   var old = document.getElementById("shipment-bookmarklet-panel");
   if (old) old.remove();
 
@@ -33,9 +34,11 @@
     if (spec.matchText) {
       return elements.find(function (candidate) { return candidate.textContent.trim() === spec.matchText; });
     }
-    return elements.find(function (candidate) {
-      return String(readRaw(candidate, spec)).trim() !== "";
-    }) || elements[0];
+    var element = elements.find(function (candidate) {
+      var value = String(readRaw(candidate, spec)).trim();
+      return value !== "" && (spec.ignoreValues || []).indexOf(value) === -1;
+    });
+    return element || (spec.ignoreValues ? undefined : elements[0]);
   }
 
   function findElementInSameKeyRows(selectedRow, spec) {
@@ -132,11 +135,78 @@
     check();
   }
 
+  function createDebugSnapshot(data, result, error) {
+    data = data || {};
+    var lockSpec = config.fields.productModelLocked;
+    var selectedProductRow = findRow(lockSpec.selectedRowSelector, lockSpec) ||
+      findRow(lockSpec.defaultRowSelector, lockSpec);
+    var rowKey = selectedProductRow ? selectedProductRow.getAttribute(lockSpec.selectedRowKeyAttribute) : null;
+    var sameKeyRows = rowKey == null ? [] : Array.prototype.slice.call(
+      document.querySelectorAll(".grid-row[" + lockSpec.selectedRowKeyAttribute + "='" + String(rowKey).replace(/'/g, "\\'") + "']")
+    );
+    var cityHasChinese = /[\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF]/.test(data.receiverCity || "");
+    return {
+      status: error ? "error" : "complete",
+      capturedAt: new Date().toISOString(),
+      error: error ? error.message : null,
+      fields: {
+        productModel: data.productModel,
+        productModelLocked: data.productModelLocked,
+        countryRegion: data.countryRegion,
+        receiverCity: data.receiverCity
+      },
+      specialShippingConditions: {
+        lockMatched: data.productModelLocked === "✔",
+        countryIsNotJapan: data.countryRegion !== "日本",
+        cityIsPresent: Boolean(data.receiverCity),
+        cityContainsChinese: cityHasChinese,
+        ruleMatched: result ? result.hitRules.some(function (rule) { return rule.id === "special-shipping-label"; }) : null
+      },
+      lockLookup: {
+        selectedProductRowFound: Boolean(selectedProductRow),
+        selectedProductRowKey: rowKey,
+        selectedProductRowClass: selectedProductRow ? selectedProductRow.className : "",
+        selectedProductModel: selectedProductRow ? String((selectedProductRow.querySelector("td[field='prodModel']") || {}).textContent || "").trim() : "",
+        selectedProductRowLockCount: selectedProductRow ? selectedProductRow.querySelectorAll(lockSpec.selector).length : 0,
+        sameKeyRows: sameKeyRows.map(function (row) {
+          return {
+            rowClass: row.className,
+            rowKey: row.getAttribute(lockSpec.selectedRowKeyAttribute),
+            productModel: String((row.querySelector("td[field='prodModel']") || {}).textContent || "").trim(),
+            lockCount: row.querySelectorAll(lockSpec.selector).length
+          };
+        }),
+        allLockIcons: Array.prototype.slice.call(document.querySelectorAll(lockSpec.selector)).map(function (icon) {
+          var row = icon.closest("tr");
+          var cell = icon.closest("td");
+          return {
+            rowKey: row ? row.getAttribute(lockSpec.selectedRowKeyAttribute) : null,
+            rowClass: row ? row.className : "",
+            parentField: cell ? cell.getAttribute("field") : null,
+            title: icon.getAttribute("title") || ""
+          };
+        })
+      },
+      hitRules: result ? result.hitRules.map(function (rule) { return rule.name || rule.id; }) : []
+    };
+  }
+
+  function publishDebugSnapshot(data, result, error) {
+    var debugSnapshot = createDebugSnapshot(data, result, error);
+    window.SHIPMENT_BOOKMARKLET_DEBUG = debugSnapshot;
+    console.group("[发货备注助手] 调试信息");
+    console.log(debugSnapshot);
+    console.log("复制调试信息：copy(JSON.stringify(window.SHIPMENT_BOOKMARKLET_DEBUG, null, 2))");
+    console.groupEnd();
+    return debugSnapshot;
+  }
+
   function run() {
+    var data = {};
     try {
-      var data = {};
       Object.keys(config.fields).forEach(function (key) { data[key] = readField(key, config.fields[key], data); });
       var result = core.generate(data, config);
+      publishDebugSnapshot(data, result, null);
       var panel = document.createElement("section");
       panel.id = "shipment-bookmarklet-panel";
       panel.style.cssText = "position:fixed;z-index:2147483647;right:24px;top:24px;width:380px;padding:18px;background:#fff;color:#172033;border:1px solid #ccd3df;border-radius:12px;box-shadow:0 12px 40px #0004;font:14px/1.5 sans-serif";
@@ -144,18 +214,20 @@
       var close = document.createElement("button"); close.textContent = "×"; close.title = "关闭"; close.style.cssText = "float:right;border:0;background:none;font-size:22px;cursor:pointer"; close.onclick = function () { panel.remove(); };
       var info = document.createElement("div"); info.style.cssText = "margin:10px 0;color:#526071";
       info.textContent = result.hitRules.length ? "命中规则：" + result.hitRules.map(function (r) { return r.name || r.id; }).join("、") : "没有命中规则，请核对页面信息。";
+      var debugHint = document.createElement("div"); debugHint.style.cssText = "margin:8px 0;color:#8a4b08;font-size:12px"; debugHint.textContent = "定位问题：按 F12 查看 [发货备注助手] 调试信息";
       var textarea = document.createElement("textarea"); textarea.value = result.remark; textarea.style.cssText = "box-sizing:border-box;width:100%;min-height:130px;padding:10px;border:1px solid #aeb8c8;border-radius:7px;resize:vertical";
       var copy = document.createElement("button"); copy.textContent = "正在自动复制…"; copy.style.cssText = "margin-top:10px;width:100%;padding:9px;border:0;border-radius:7px;background:#1769e0;color:#fff;cursor:pointer";
       copy.onclick = function () {
         copyText(textarea, function () { copy.textContent = "已复制，可再次点击复制"; }, function () { copy.textContent = "复制失败，请手工复制"; });
       };
-      panel.append(close, title, info, textarea, copy); document.body.appendChild(panel);
+      panel.append(close, title, info, debugHint, textarea, copy); document.body.appendChild(panel);
       if (result.remark) {
         copyText(textarea, function () { copy.textContent = "已自动复制，可再次点击复制"; }, function () { copy.textContent = "自动复制失败，请点击复制"; });
       } else {
         copy.textContent = "没有可复制的备注";
       }
     } catch (error) {
+      publishDebugSnapshot(data, null, error);
       alert("发货备注助手：" + error.message);
     }
   }

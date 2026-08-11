@@ -90,7 +90,9 @@
 
 国家/地区当前尝试读取常见的 `countryName` / `countryRegionName` / `country` / `countryAreaName` 输入框或表格字段；如果测试时提示“国家/地区”缺失，请提供该字段 HTML 以补充选择器。
 
-收货城市同时查询 `input#cityName[name='baseLastConsigneeInfoVO.cityName']` 和 `td[field='consigneeVO.cityName']`，并优先使用第一个非空值。如果城市尚未渲染，程序会自动点击 `li[tabid='goodsInfoTab'] a` 打开“收货信息”页签，并最多等待 5 秒，直到 `td[field='consigneeVO.cityName']` 出现且具有文本，再继续生成备注。因此不需要先手工打开“收货信息”。程序检测 CJK 中文字符；“成都市”会使特殊发货标签不命中，`Munich` 等不含中文的城市才满足该条件。
+收货城市同时查询 `input#cityName[name='baseLastConsigneeInfoVO.cityName']` 和 `td[field='consigneeVO.cityName']`，并优先使用第一个有效值。页面初始化输入框可能把字段标签“收货城市”放进 `value`，该标签会被明确忽略，不能再被误判为实际城市。如果尚无有效城市，程序会自动点击 `li[tabid='goodsInfoTab'] a` 打开“收货信息”页签，并最多等待 5 秒，直到 `td[field='consigneeVO.cityName']` 出现且具有真实文本，再继续生成备注。因此不需要先手工打开“收货信息”。程序检测 CJK 中文字符；“成都市”会使特殊发货标签不命中，`City of Johannesburg` 等不含中文的城市才满足该条件。
+
+如果“特殊发货标签”判断不符合预期，执行 Bookmarklet 后按 F12 打开控制台，展开 `[发货备注助手] 调试信息`。程序从开始等待字段时就创建 `window.SHIPMENT_BOOKMARKLET_DEBUG`，成功时状态为 `complete`，读取或规则生成异常时状态为 `error` 并带有错误信息，因此新版本不应再返回 `undefined`。在 Chrome 控制台执行 `copy(JSON.stringify(window.SHIPMENT_BOOKMARKLET_DEBUG, null, 2))` 即可复制并反馈。快照包含三个规则条件的实际值、目标产品行、同 `_row` 拆分同行的锁数量以及最终是否命中，不包含整行 HTML。
 
 ### 规则 7：安装样机管理软件
 

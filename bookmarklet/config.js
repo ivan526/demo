@@ -13,7 +13,7 @@ window.SHIPMENT_BOOKMARKLET_CONFIG = {
     productModel: { label: "产品型号", selector: "td[field='prodModel']", selectedRowSelector: ".grid-row.igrid-selected", defaultRowSelector: ".grid-row", selectedRowKeyAttribute: "_row", optional: true },
     productModelLocked: { label: "产品型号带锁", selector: ".jalor-icon.lock", presentValue: "✔", selectedRowSelector: ".grid-row.igrid-selected", defaultRowSelector: ".grid-row", rowContainsSelector: "td[field='prodModel']", selectedRowKeyAttribute: "_row", optional: true },
     countryRegion: { label: "国家/地区", selector: "input[name='countryName'],input[name='countryRegionName'],input[name='country'],input[name='countryAreaName'],td[field='countryName'],td[field='countryRegionName'],td[field='country'],td[field='countryAreaName']", value: "value", optional: true },
-    receiverCity: { label: "收货城市", selector: "input#cityName[name='baseLastConsigneeInfoVO.cityName'],td[field='consigneeVO.cityName']", value: "value", revealSelector: "li[tabid='goodsInfoTab'] a", revealTimeout: 5000, optional: true },
+    receiverCity: { label: "收货城市", selector: "input#cityName[name='baseLastConsigneeInfoVO.cityName'],td[field='consigneeVO.cityName']", value: "value", ignoreValues: ["收货城市"], revealSelector: "li[tabid='goodsInfoTab'] a", revealTimeout: 5000, optional: true },
     processCode: { label: "流程编号", selector: "input[name='rdSampleApplyId']", value: "value", optional: true },
     applicantId: { label: "申请人ID", selector: "input[name='applyUserName']", value: "value", normalize: "employeeId", optional: true },
     chargeAccountId: { label: "挂账人", selector: "input[name='reqUserName']", value: "value", normalize: "employeeId", optional: true },

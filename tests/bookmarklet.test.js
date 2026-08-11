@@ -434,6 +434,7 @@ test("runtime config contains country and model-lock fields for label rules", ()
     label: "收货城市",
     selector: "input#cityName[name='baseLastConsigneeInfoVO.cityName'],td[field='consigneeVO.cityName']",
     value: "value",
+    ignoreValues: ["收货城市"],
     revealSelector: "li[tabid='goodsInfoTab'] a",
     revealTimeout: 5000
   });
@@ -448,4 +449,22 @@ test("runtime config contains country and model-lock fields for label rules", ()
   expect(runtimeConfig.rules.find((rule) => rule.id === "not-for-sale-sample-label-1").name).toBe("非销售样机标签1");
   expect(runtimeConfig.rules.find((rule) => rule.id === "not-for-sale-sample-label-2").name).toBe("非销售样机标签2");
   expect(runtimeConfig.rules.find((rule) => rule.id === "special-shipping-label").name).toBe("特殊发货标签");
+});
+
+test("runtime exposes a structured debug snapshot for special shipping diagnosis", () => {
+  const source = fs.readFileSync(path.join(__dirname, "../bookmarklet/bookmarklet.js"), "utf8");
+  expect(source).toContain("window.SHIPMENT_BOOKMARKLET_DEBUG = { status: \"waiting-for-fields\"");
+  expect(source).toContain("window.SHIPMENT_BOOKMARKLET_DEBUG = debugSnapshot");
+  expect(source).toContain("publishDebugSnapshot(data, null, error)");
+  expect(source).toContain("specialShippingConditions");
+  expect(source).toContain("sameKeyRows");
+  expect(source).toContain("[发货备注助手] 调试信息");
+});
+
+test("runtime ignores the receiver-city field label before the real city is revealed", () => {
+  const runtimeConfig = loadBookmarkletConfig();
+  const source = fs.readFileSync(path.join(__dirname, "../bookmarklet/bookmarklet.js"), "utf8");
+  expect(runtimeConfig.fields.receiverCity.ignoreValues).toEqual(["收货城市"]);
+  expect(source).toContain("(spec.ignoreValues || []).indexOf(value) === -1");
+  expect(source).toContain("spec.ignoreValues ? undefined : elements[0]");
 });

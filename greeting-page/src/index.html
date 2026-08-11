@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>云端问候</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- 输入页面 -->
+        <div id="input-page" class="page active">
+            <div class="card">
+                <div class="icon">👋</div>
+                <h1 class="title">云端问候</h1>
+                <p class="subtitle">输入您的姓名，获取专属问候</p>
+                
+                <form id="greet-form" class="form">
+                    <div class="form-group">
+                        <label for="name" class="label">您的姓名</label>
+                        <input 
+                            type="text" 
+                            id="name" 
+                            name="name" 
+                            class="input"
+                            placeholder="请输入2-20个字符"
+                            autocomplete="off"
+                            maxlength="20"
+                        >
+                        <div id="name-error" class="error-message"></div>
+                    </div>
+                    
+                    <button type="submit" id="submit-btn" class="button">
+                        <span class="button-text">发送问候</span>
+                        <span class="button-loading" style="display: none;">
+                            <span class="spinner"></span>
+                            加载中...
+                        </span>
+                    </button>
+                </form>
+
+                <div id="global-error" class="global-error" style="display: none;">
+                    <span class="error-icon">⚠️</span>
+                    <span id="error-text"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 结果页面 -->
+        <div id="result-page" class="page">
+            <div class="card">
+                <div class="icon success-icon">✨</div>
+                <h1 class="title">问候已送达</h1>
+                
+                <div class="result-content">
+                    <div class="result-item">
+                        <span class="result-label">问候语</span>
+                        <div id="greeting-text" class="result-value greeting"></div>
+                    </div>
+                    
+                    <div class="result-item">
+                        <span class="result-label">服务器时间</span>
+                        <div id="server-time" class="result-value"></div>
+                    </div>
+                    
+                    <div class="result-item">
+                        <span class="result-label">部署版本</span>
+                        <div id="version" class="result-value version"></div>
+                    </div>
+                </div>
+
+                <button id="back-btn" class="button button-secondary">
+                    返回首页
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
